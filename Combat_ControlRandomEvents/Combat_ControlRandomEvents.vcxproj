@@ -79,11 +79,15 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CombatCreatureSettingsDlg.h" />
     <ClInclude Include="CreatureAbilitiesRandom.h" />
+    <ClInclude Include="CreatureMoraleRandom.h" />
     <ClInclude Include="framework.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CombatCreatureSettingsDlg.cpp" />
     <ClCompile Include="CreatureAbilitiesRandom.cpp" />
+    <ClCompile Include="CreatureMoraleRandom.cpp" />
     <ClCompile Include="dllmain.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

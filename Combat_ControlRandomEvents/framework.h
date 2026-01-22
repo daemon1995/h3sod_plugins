@@ -7,3 +7,5 @@
 
 #include "..\headers\header.h"
 #include "CreatureAbilitiesRandom.h"
+#include "CreatureMoraleRandom.h"
+#include "CombatCreatureSettingsDlg.h"
