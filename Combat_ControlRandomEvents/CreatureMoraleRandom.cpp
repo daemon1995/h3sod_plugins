@@ -9,82 +9,90 @@ CreatureMoraleRandom::CreatureMoraleRandom() : IGamePatch(_PI)
 void __stdcall CreatureMoraleRandom::BattleMgr_CheckGoodMorale(HiHook *h, H3CombatManager *_this, const int side,
                                                                const int index)
 {
+    const auto &creature = _this->stacks[side][index]; // = P_CombatManager->Get();
 
-    const auto &creatureSettings = CreatureSettingsManager::GetCreatureSettings(side, index);
-
-    switch (creatureSettings.positiveMorale)
+    if (creature.numberAlive && creature.info.morale && !creature.info.done && !creature.info.defending &&
+        creature.morale > 0)
     {
-    case eTriggerState::DEFAULT:
+        const auto &creatureSettings = CreatureSettingsManager::GetCreatureSettings(side, index);
 
-        if (instance->positiveMoralePatchActive)
+        switch (creatureSettings.positiveMorale)
         {
-            instance->positiveMoralePatch->Undo();
-            instance->positiveMoralePatchActive = FALSE;
-        }
+        case eTriggerState::DEFAULT:
 
-        break;
-        // Always good morale
-    case eTriggerState::ALWAYS:
-        if (!instance->positiveMoralePatchActive)
-        {
-            instance->positiveMoralePatch->Apply();
-            instance->positiveMoralePatchActive = TRUE;
-        }
-        break;
+            if (instance->positiveMoralePatchActive)
+            {
+                instance->positiveMoralePatch->Undo();
+                instance->positiveMoralePatchActive = FALSE;
+            }
 
-        // Never good morale
-    case eTriggerState::NEVER:
-        return;
+            break;
+            // Always good morale
+        case eTriggerState::ALWAYS:
+            if (!instance->positiveMoralePatchActive)
+            {
+                instance->positiveMoralePatch->Apply();
+                instance->positiveMoralePatchActive = TRUE;
+            }
+            break;
 
-    default:
-        if (instance->positiveMoralePatchActive)
-        {
-            instance->positiveMoralePatch->Undo();
-            instance->positiveMoralePatchActive = FALSE;
+            // Never good morale
+        case eTriggerState::NEVER:
+            return;
+
+        default:
+            if (instance->positiveMoralePatchActive)
+            {
+                instance->positiveMoralePatch->Undo();
+                instance->positiveMoralePatchActive = FALSE;
+            }
+            break;
         }
-        break;
     }
+
     THISCALL_3(void, h->GetDefaultFunc(), _this, side, index);
 }
+
 int __stdcall CreatureMoraleRandom::BattleMgr_CheckBadMorale(HiHook *h, H3CombatManager *_this, const int side,
                                                              const int index)
 {
-    const auto &creatureSettings = CreatureSettingsManager::GetCreatureSettings(side, index);
-
-    switch (creatureSettings.negativeMorale)
+    if (P_CombatManager->stacks[side][index].morale < 0)
     {
-    case eTriggerState::DEFAULT:
+        const auto &creatureSettings = CreatureSettingsManager::GetCreatureSettings(side, index);
 
-        if (instance->negativeMoralePatchActive)
+        switch (creatureSettings.negativeMorale)
         {
-            instance->negativeMoralePatch->Undo();
-            instance->negativeMoralePatchActive = FALSE;
-        }
+        case eTriggerState::DEFAULT:
 
-        break;
-        // Always bad morale
-    case eTriggerState::ALWAYS:
-        if (!instance->negativeMoralePatchActive)
-        {
-            instance->negativeMoralePatch->Apply();
-            instance->negativeMoralePatchActive = TRUE;
-        }
-        break;
+            if (instance->negativeMoralePatchActive)
+            {
+                instance->negativeMoralePatch->Undo();
+                instance->negativeMoralePatchActive = FALSE;
+            }
+            break;
+            // Always bad morale
+        case eTriggerState::ALWAYS:
+            if (!instance->negativeMoralePatchActive)
+            {
+                instance->negativeMoralePatch->Apply();
+                instance->negativeMoralePatchActive = TRUE;
+            }
+            break;
+            // Never bad morale
+        case eTriggerState::NEVER:
+            return 0;
 
-        // Never bad morale
-    case eTriggerState::NEVER:
-        return 0;
-
-    default:
-        if (instance->negativeMoralePatchActive)
-        {
-            instance->negativeMoralePatch->Undo();
-            instance->negativeMoralePatchActive = FALSE;
+        default:
+            if (instance->negativeMoralePatchActive)
+            {
+                instance->negativeMoralePatch->Undo();
+                instance->negativeMoralePatchActive = FALSE;
+            }
+            break;
         }
-        break;
     }
 
-    // defalt behavior
+    // default behavior
     return THISCALL_3(int, h->GetDefaultFunc(), _this, side, index);
 }
 void CreatureMoraleRandom::CreatePatches()

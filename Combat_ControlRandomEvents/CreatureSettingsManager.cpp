@@ -23,42 +23,55 @@ CreatureSettingsManager &CreatureSettingsManager::GetInstance()
     return *instance;
 }
 
+void TestInitiate(CreatureSettingsManager *instance)
+{
+
+    CombatCreatureSettings temp;
+    temp.positiveMorale = eTriggerState::ALWAYS;
+    temp.afterAttackAbility = eTriggerState::ALWAYS;
+    temp.damage = eDamageState::DAMAGE_MIN_100;
+    temp.doubleDamage = eTriggerState::ALWAYS;
+
+    for (size_t i = 0; i < h3::limits::COMBAT_CREATURES; i++)
+    {
+        instance->SetCreatureSettings(&P_CombatManager->stacks[0][i], temp);
+    }
+}
+
 void __stdcall CreatureSettingsManager::BattleMgr_StartBattle(HiHook *h, H3CombatManager *_this)
 {
 
     THISCALL_1(void, h->GetDefaultFunc(), _this);
     instance->combatIsStarted = false;
-	instance->ResetAllCreatureSettings();
+    instance->ResetAllCreatureSettings();
     instance->tacticsPhaseRound = _this->tacticsPhase;
 
     if (_this->tacticsPhase)
     {
         libc::sprintf(h3_TextBuffer, "Creature Settings Manager: New Round %d", _this->turn);
-        //  H3Messagebox(h3_TextBuffer);
+        H3Messagebox(h3_TextBuffer);
+    }
+    else
+    {
+        instance->combatIsStarted = true;
+        TestInitiate(instance);
     }
 }
 
+// isn't executed if combat doesn't have tactics phase
 void __stdcall CreatureSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatManager *_this)
 {
 
     THISCALL_1(void, h->GetDefaultFunc(), _this);
-    // if (!instance->combatIsStarted && _this->tacticsPhase)
-    //{
-    //     instance->combatIsStarted = true;
-    // }
+
     if (instance->combatIsStarted)
     {
+        TestInitiate(instance);
         libc::sprintf(h3_TextBuffer, "Creature Settings Manager: New Round %d", _this->turn);
         _this->AddStatusMessage(h3_TextBuffer);
-
+        //  H3Messagebox("instance->combatIsStarted");
         if (_this->turn + 1 - instance->tacticsPhaseRound == 2)
         {
-            for (size_t i = 0; i < h3::limits::COMBAT_CREATURES; i++)
-            {
-                instance->combatCreatureSettings[0][i].positiveMorale = eTriggerState::ALWAYS;
-                instance->combatCreatureSettings[0][i].afterAttackAbility = eTriggerState::ALWAYS;
-                instance->combatCreatureSettings[0][i].damage = eDamageState::DAMAGE_MIN_50;
-            }
         }
     }
     else if (!_this->tacticsPhase)

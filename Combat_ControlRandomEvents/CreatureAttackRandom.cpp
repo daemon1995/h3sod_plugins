@@ -34,8 +34,6 @@ int __stdcall CreatureAttackRandom::CombatCreature_DamageRandom(HiHook *h, const
     return FASTCALL_2(int, h->GetDefaultFunc(), min, max);
 }
 
-
-
 int __stdcall CreatureAttackRandom::BattleStack_AfterAttackAbilityRandom(HiHook *hook, const int min, const int max)
 {
 
@@ -51,7 +49,6 @@ int __stdcall CreatureAttackRandom::BattleStack_AfterAttackAbilityRandom(HiHook 
             break; // return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
         }
     }
-
 
     return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 }
@@ -73,6 +70,34 @@ char __stdcall CreatureAttackRandom::BattleStack_AttackMelee(HiHook *hook, const
     return result;
 }
 
+int __stdcall CreatureAttackRandom::BattleStack_DoubleDamageRandom(HiHook *h, const int min, const int max)
+{
+    if (instance->currentSettings)
+    {
+        switch (instance->currentSettings->doubleDamage)
+        {
+        case eTriggerState::ALWAYS:
+            return min; // always double damage
+        case eTriggerState::NEVER:
+            return max; // never double damage
+        default:
+            break; // return FASTCALL_2(int, h->GetDefaultFunc(), min, max);
+        }
+    }
+    // return default behavior
+    return FASTCALL_2(int, h->GetDefaultFunc(), min, max);
+}
+
+int __stdcall CreatureAttackRandom::BattleStack_RandomToHitTargetedWall(HiHook *h, const int min, const int max)
+{
+    return 100;
+}
+
+int __stdcall CreatureAttackRandom::BattleStack_RandomToSelectTargetedWall(HiHook *h, const int min, const int max)
+{
+    return max;
+}
+
 void CreatureAttackRandom::CreateAbilityEvent(const eCreature creature, const DWORD patchAddress,
                                               const void *functionPtr, const eTriggerState trigger, eVKey hotkey)
 {
@@ -92,6 +117,28 @@ void CreatureAttackRandom::CreateAbilityEvent(const eCreature creature, const DW
 
                            ));
     }
+}
+
+int wallIdStored = -1;
+void __stdcall combatMonster_00445BE0_AttackWall(HiHook *h, H3CombatCreature *attacker, const int wallId, int *damages)
+{
+    // store creature type before random function
+    CreatureAttackRandom::GetInstance().currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
+    wallIdStored = wallId;
+    THISCALL_3(void, h->GetDefaultFunc(), attacker, wallId, damages);
+    CreatureAttackRandom::GetInstance().currentSettings = nullptr;
+}
+_LHF_(BattleStack_MakeBallisticShot) //(HiHook* h, H3CombatCreature* attacker, const __int64 wallId)//, int damage)
+{
+    // store creature type before random function
+    //   CreatureAttackRandom::GetInstance().currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
+    // THISCALL_2(void, h->GetDefaultFunc(), attacker, wallId);// , damage);
+    c->Pop();
+    c->Push(wallIdStored);
+
+    return EXEC_DEFAULT;
+    wallIdStored = -1;
+    // CreatureAttackRandom::GetInstance().currentSettings = nullptr;
 }
 
 void CreatureAttackRandom::CreatePatches()
@@ -146,6 +193,16 @@ void CreatureAttackRandom::CreatePatches()
 
         // acid breath
         CreateAbilityEvent(eCreature::RUST_DRAGON, 0x4411D7, BattleStack_AfterAttackAbilityRandom);
+
+        // dread knigts double damage
+        WriteHiHook(0x04436D9, FASTCALL_, BattleStack_DoubleDamageRandom);
+
+        // Cyclops: Wall Damage random
+        // WriteHiHook(0x0445C45, FASTCALL_, BattleStack_RandomToHitTargetedWall);
+        // WriteHiHook(0x0445C8C, FASTCALL_, BattleStack_RandomToSelectTargetedWall);
+
+        WriteHiHook(0x0445BE0, THISCALL_, combatMonster_00445BE0_AttackWall);
+        WriteLoHook(0x0445CBB, BattleStack_MakeBallisticShot);
     }
 }
 

@@ -14,6 +14,7 @@ struct EventHandler
 
 class CreatureAttackRandom : public IGamePatch
 {
+  public:
     static CreatureAttackRandom *instance;
     const H3CombatCreature *currentCombatCreature = nullptr;
 
@@ -37,22 +38,22 @@ class CreatureAttackRandom : public IGamePatch
                             const eTriggerState trigger = DEFAULT, const eVKey hotkey = eVKey(0));
 
   public:
-    //static void __stdcall BattleStack_AfterAttackAbility(HiHook *hook, const H3CombatCreature *attacker,
-    //                                                     const H3CombatCreature *defender, const int damageDealt,
-    //                                                     const int killed, const int a5);
+    // static void __stdcall BattleStack_AfterAttackAbility(HiHook *hook, const H3CombatCreature *attacker,
+    //                                                      const H3CombatCreature *defender, const int damageDealt,
+    //                                                      const int killed, const int a5);
 
     static int __stdcall BattleStack_AfterAttackAbilityRandom(HiHook *hook, const int min, const int max);
 
-
-
-    static char  __stdcall BattleStack_AttackMelee(HiHook* hook, const H3CombatCreature* attacker,
-        const H3CombatCreature* defender, const int direction);
+    static char __stdcall BattleStack_AttackMelee(HiHook *hook, const H3CombatCreature *attacker,
+                                                  const H3CombatCreature *defender, const int direction);
 
     static void __stdcall BattleStack_Shoot(HiHook *hook, const H3CombatCreature *attacker,
                                             const H3CombatCreature *target);
 
     static int __stdcall CombatCreature_DamageRandom(HiHook *h, const int min, const int max);
-
+    static int __stdcall BattleStack_DoubleDamageRandom(HiHook *h, const int min, const int max);
+    static int __stdcall BattleStack_RandomToHitTargetedWall(HiHook *h, const int min, const int max);
+    static int __stdcall BattleStack_RandomToSelectTargetedWall(HiHook *h, const int min, const int max);
 
   public:
     static CreatureAttackRandom &GetInstance();
