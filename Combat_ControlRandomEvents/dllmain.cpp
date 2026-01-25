@@ -19,7 +19,6 @@ void __stdcall BattleMgr_ShowMonStatDlg(HiHook *hook, H3CombatManager *mgr, H3Co
     if (controlPressed)
     {
         CombatCreatureSettingsDlg::ShowSettingsDlg(creature, isRightClick);
-        //  H3Messagebox::RMB("123");
     }
     else
     {
@@ -29,7 +28,9 @@ void __stdcall BattleMgr_ShowMonStatDlg(HiHook *hook, H3CombatManager *mgr, H3Co
 
 _LHF_(HooksInit)
 {
-    CreatureAbilitiesRandom::GetInstance();
+    CreatureAttackRandom::GetInstance();
+    CreatureSettingsManager::GetInstance();
+    CreatureMoraleRandom::GetInstance();
 
     _PI->WriteHiHook(0x468440, THISCALL_, BattleMgr_ShowMonStatDlg);
     return EXEC_DEFAULT;

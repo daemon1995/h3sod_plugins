@@ -6,6 +6,10 @@
 #include <windows.h>
 
 #include "..\headers\header.h"
-#include "CreatureAbilitiesRandom.h"
-#include "CreatureMoraleRandom.h"
+#include "enums.h"
+
+#include "CombatCreatureSettings.h"
 #include "CombatCreatureSettingsDlg.h"
+#include "CreatureAttackRandom.h"
+#include "CreatureMoraleRandom.h"
+#include "CreatureSettingsManager.h"

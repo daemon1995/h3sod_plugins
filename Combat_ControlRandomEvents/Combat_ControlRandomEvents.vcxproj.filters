@@ -18,7 +18,7 @@
     <ClInclude Include="framework.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CreatureAbilitiesRandom.h">
+    <ClInclude Include="CreatureAttackRandom.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CreatureMoraleRandom.h">
@@ -27,18 +27,33 @@
     <ClInclude Include="CombatCreatureSettingsDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="CombatCreatureSettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="enums.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CreatureSettingsManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CreatureAbilitiesRandom.cpp">
+    <ClCompile Include="CreatureAttackRandom.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CreatureMoraleRandom.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CombatCreatureSettingsDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CombatCreatureSettings.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CreatureSettingsManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
