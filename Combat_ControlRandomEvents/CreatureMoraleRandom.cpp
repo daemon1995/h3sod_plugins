@@ -1,109 +1,93 @@
 #include "framework.h"
 
 CreatureMoraleRandom *CreatureMoraleRandom::instance = nullptr;
-CreatureMoraleRandom::CreatureMoraleRandom() : IGamePatch(_PI)
+CreatureMoraleRandom::CreatureMoraleRandom() : IGamePatch(globalPatcher->CreateInstance(instanceName))
 {
     CreatePatches();
 }
 
-void __stdcall CreatureMoraleRandom::BattleMgr_CheckGoodMorale(HiHook *h, H3CombatManager *_this, const int side,
+void __stdcall CreatureMoraleRandom::BattleMgr_CheckGoodMorale(HiHook *h, const H3CombatManager *_this, const int side,
                                                                const int index)
 {
-    const auto &creature = _this->stacks[side][index]; // = P_CombatManager->Get();
 
-    if (creature.numberAlive && creature.info.morale && !creature.info.done && !creature.info.defending &&
-        creature.morale > 0)
-    {
-        const auto &creatureSettings = CreatureSettingsManager::GetCreatureSettings(side, index);
-
-        switch (creatureSettings.positiveMorale)
-        {
-        case eTriggerState::DEFAULT:
-
-            if (instance->positiveMoralePatchActive)
-            {
-                instance->positiveMoralePatch->Undo();
-                instance->positiveMoralePatchActive = FALSE;
-            }
-
-            break;
-            // Always good morale
-        case eTriggerState::ALWAYS:
-            if (!instance->positiveMoralePatchActive)
-            {
-                instance->positiveMoralePatch->Apply();
-                instance->positiveMoralePatchActive = TRUE;
-            }
-            break;
-
-            // Never good morale
-        case eTriggerState::NEVER:
-            return;
-
-        default:
-            if (instance->positiveMoralePatchActive)
-            {
-                instance->positiveMoralePatch->Undo();
-                instance->positiveMoralePatchActive = FALSE;
-            }
-            break;
-        }
-    }
+    instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(side, index);
 
     THISCALL_3(void, h->GetDefaultFunc(), _this, side, index);
+    instance->currentSettings = nullptr;
 }
 
-int __stdcall CreatureMoraleRandom::BattleMgr_CheckBadMorale(HiHook *h, H3CombatManager *_this, const int side,
+int __stdcall CreatureMoraleRandom::BattleStack_PositiveMoraleRandom(HiHook *hook, const int min, const int max)
+{
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->positiveMorale);
+}
+
+int __stdcall CreatureMoraleRandom::BattleMgr_CheckBadMorale(HiHook *h, const H3CombatManager *_this, const int side,
                                                              const int index)
 {
-    if (P_CombatManager->stacks[side][index].morale < 0)
+    instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(side, index);
+    int result = THISCALL_3(int, h->GetDefaultFunc(), _this, side, index);
+    instance->currentSettings = nullptr;
+    return result;
+}
+int __stdcall CreatureMoraleRandom::BattleStack_NegativeMoraleRandom(HiHook *hook, const int min, const int max)
+{
+
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->negativeMorale);
+}
+
+int __stdcall CreatureMoraleRandom::AIBattleStack_NegativeMoraleRandom(HiHook *hook, const int min, const int max)
+{
+    if (instance->currentSettings)
     {
-        const auto &creatureSettings = CreatureSettingsManager::GetCreatureSettings(side, index);
-
-        switch (creatureSettings.negativeMorale)
+        switch (instance->currentSettings->negativeMorale.triggerState)
         {
-        case eTriggerState::DEFAULT:
-
-            if (instance->negativeMoralePatchActive)
-            {
-                instance->negativeMoralePatch->Undo();
-                instance->negativeMoralePatchActive = FALSE;
-            }
-            break;
-            // Always bad morale
         case eTriggerState::ALWAYS:
-            if (!instance->negativeMoralePatchActive)
-            {
-                instance->negativeMoralePatch->Apply();
-                instance->negativeMoralePatchActive = TRUE;
-            }
-            break;
-            // Never bad morale
+            return max; // always trigger ability
         case eTriggerState::NEVER:
-            return 0;
-
+            return min; // never trigger ability
         default:
-            if (instance->negativeMoralePatchActive)
-            {
-                instance->negativeMoralePatch->Undo();
-                instance->negativeMoralePatchActive = FALSE;
-            }
-            break;
+            break; // return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
         }
     }
 
-    // default behavior
-    return THISCALL_3(int, h->GetDefaultFunc(), _this, side, index);
+    return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 }
+
+char __stdcall CreatureMoraleRandom::BattleMgr_CheckFear(HiHook *h, const H3CombatManager *_this,
+                                                         const H3CombatCreature *creature)
+{
+
+    instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(creature);
+    char result = THISCALL_2(char, h->GetDefaultFunc(), _this, creature);
+    instance->currentSettings = nullptr;
+    return result;
+}
+
+int __stdcall CreatureMoraleRandom::BattleStack_FearRandom(HiHook *hook, const int min, const int max)
+{
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->fear);
+}
+
 void CreatureMoraleRandom::CreatePatches()
 {
     if (!this->m_isInited)
     {
         this->m_isInited = true;
-        positiveMoralePatch = _PI->CreateHexPatch(0x04645A9, "EB 15 909090");
-        negativeMoralePatch = _PI->CreateHexPatch(0x046479D, "EB 3F 909090");
+
+        // positive morale code
         WriteHiHook(0x0464500, THISCALL_, BattleMgr_CheckGoodMorale);
-        WriteHiHook(0x0464720, THISCALL_, BattleMgr_CheckBadMorale);
+        WriteHiHook(0x04645B3, FASTCALL_, BattleStack_PositiveMoraleRandom);
+
+        // negative morale code
+        WriteHiHook(0x0464E63, THISCALL_, BattleMgr_CheckBadMorale);
+
+        WriteHiHook(0x04647A7, FASTCALL_, BattleStack_NegativeMoraleRandom);
+        // ATTENTION: AI has additional negative morale check that gives 25% chance to evade it;
+        // return result for it must be reversed
+        WriteHiHook(0x04647D0, FASTCALL_, AIBattleStack_NegativeMoraleRandom);
+
+        // fear check
+        WriteHiHook(0x0464E73, THISCALL_, BattleMgr_CheckFear);
     }
 }
 

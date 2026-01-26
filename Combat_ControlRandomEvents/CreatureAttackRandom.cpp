@@ -1,17 +1,34 @@
 #include "framework.h"
 
 CreatureAttackRandom *CreatureAttackRandom::instance = nullptr;
-CreatureAttackRandom::CreatureAttackRandom() : IGamePatch(_PI)
+CreatureAttackRandom::CreatureAttackRandom() : IGamePatch(globalPatcher->CreateInstance(instanceName))
 {
     CreatePatches();
 }
 
-int __stdcall CreatureAttackRandom::CombatCreature_DamageRandom(HiHook *h, const int min, const int max)
+void __stdcall CreatureAttackRandom::BattleStack_Shoot(HiHook *hook, const H3CombatCreature *attacker,
+                                                       const H3CombatCreature *defender)
+{
+    instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
+    THISCALL_2(void, hook->GetDefaultFunc(), attacker, defender);
+    instance->currentSettings = nullptr;
+}
+char __stdcall CreatureAttackRandom::BattleStack_AttackMelee(HiHook *hook, const H3CombatCreature *attacker,
+                                                             const H3CombatCreature *defender, const int direction)
+{
+    // store creature type before random function
+    instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
+    const char result = THISCALL_3(char, hook->GetDefaultFunc(), attacker, defender, direction);
+    instance->currentSettings = nullptr;
+    return result;
+}
+
+int __stdcall CreatureAttackRandom::BattleStack_DamageRandom(HiHook *h, const int min, const int max)
 {
 
     if (instance->currentSettings)
     {
-        switch (instance->currentSettings->damage)
+        switch (instance->currentSettings->damage.triggerState)
         {
         case eDamageState::DAMAGE_DEFAULT:
             break;
@@ -36,66 +53,42 @@ int __stdcall CreatureAttackRandom::CombatCreature_DamageRandom(HiHook *h, const
 
 int __stdcall CreatureAttackRandom::BattleStack_AfterAttackAbilityRandom(HiHook *hook, const int min, const int max)
 {
-
-    if (instance->currentSettings)
-    {
-        switch (instance->currentSettings->afterAttackAbility)
-        {
-        case eTriggerState::ALWAYS:
-            return min; // always trigger ability
-        case eTriggerState::NEVER:
-            return max; // never trigger ability
-        default:
-            break; // return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
-        }
-    }
-
-    return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->afterAttackAbility);
 }
 
-void __stdcall CreatureAttackRandom::BattleStack_Shoot(HiHook *hook, const H3CombatCreature *attacker,
-                                                       const H3CombatCreature *defender)
+int __stdcall CreatureAttackRandom::BattleStack_DoubleDamageRandom(HiHook *hook, const int min, const int max)
 {
-    instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
-    THISCALL_2(void, hook->GetDefaultFunc(), attacker, defender);
-    instance->currentSettings = nullptr;
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->doubleDamage);
 }
-char __stdcall CreatureAttackRandom::BattleStack_AttackMelee(HiHook *hook, const H3CombatCreature *attacker,
-                                                             const H3CombatCreature *defender, const int direction)
+int __stdcall CreatureAttackRandom::BattleStack_LuckRandom(HiHook *hook, const int min, const int max)
+{
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->positiveLuck);
+}
+
+void __stdcall CreatureAttackRandom::BattleStack_AttackWall(HiHook *h, H3CombatCreature *attacker, const int wallId,
+                                                            int *damages)
 {
     // store creature type before random function
     instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
-    const char result = THISCALL_3(char, hook->GetDefaultFunc(), attacker, defender, direction);
-    instance->currentSettings = nullptr;
-    return result;
-}
 
-int __stdcall CreatureAttackRandom::BattleStack_DoubleDamageRandom(HiHook *h, const int min, const int max)
-{
-    if (instance->currentSettings)
+    if (instance->currentSettings->wallAttackAim.triggerState)
     {
-        switch (instance->currentSettings->doubleDamage)
-        {
-        case eTriggerState::ALWAYS:
-            return min; // always double damage
-        case eTriggerState::NEVER:
-            return max; // never double damage
-        default:
-            break; // return FASTCALL_2(int, h->GetDefaultFunc(), min, max);
-        }
+        instance->targetWallId = wallId; // always hit the wall
     }
-    // return default behavior
-    return FASTCALL_2(int, h->GetDefaultFunc(), min, max);
+    THISCALL_3(void, h->GetDefaultFunc(), attacker, wallId, damages);
+    instance->currentSettings = nullptr;
 }
-
-int __stdcall CreatureAttackRandom::BattleStack_RandomToHitTargetedWall(HiHook *h, const int min, const int max)
+_LHF_(CreatureAttackRandom::BattleStack_MakeBallisticShot)
 {
-    return 100;
-}
 
-int __stdcall CreatureAttackRandom::BattleStack_RandomToSelectTargetedWall(HiHook *h, const int min, const int max)
-{
-    return max;
+    if (instance->targetWallId != -1)
+    {
+        c->Pop();
+        c->Push(instance->targetWallId);
+        instance->targetWallId = -1;
+    }
+
+    return EXEC_DEFAULT;
 }
 
 void CreatureAttackRandom::CreateAbilityEvent(const eCreature creature, const DWORD patchAddress,
@@ -119,28 +112,6 @@ void CreatureAttackRandom::CreateAbilityEvent(const eCreature creature, const DW
     }
 }
 
-int wallIdStored = -1;
-void __stdcall combatMonster_00445BE0_AttackWall(HiHook *h, H3CombatCreature *attacker, const int wallId, int *damages)
-{
-    // store creature type before random function
-    CreatureAttackRandom::GetInstance().currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
-    wallIdStored = wallId;
-    THISCALL_3(void, h->GetDefaultFunc(), attacker, wallId, damages);
-    CreatureAttackRandom::GetInstance().currentSettings = nullptr;
-}
-_LHF_(BattleStack_MakeBallisticShot) //(HiHook* h, H3CombatCreature* attacker, const __int64 wallId)//, int damage)
-{
-    // store creature type before random function
-    //   CreatureAttackRandom::GetInstance().currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
-    // THISCALL_2(void, h->GetDefaultFunc(), attacker, wallId);// , damage);
-    c->Pop();
-    c->Push(wallIdStored);
-
-    return EXEC_DEFAULT;
-    wallIdStored = -1;
-    // CreatureAttackRandom::GetInstance().currentSettings = nullptr;
-}
-
 void CreatureAttackRandom::CreatePatches()
 {
     if (!this->m_isInited)
@@ -153,8 +124,8 @@ void CreatureAttackRandom::CreatePatches()
 
         // physical damage control
         // the game has two places where it calculates damage for physical attacks
-        WriteHiHook(0x443024, FASTCALL_, CombatCreature_DamageRandom);
-        WriteHiHook(0x442FE9, FASTCALL_, CombatCreature_DamageRandom);
+        WriteHiHook(0x443024, FASTCALL_, BattleStack_DamageRandom);
+        WriteHiHook(0x442FE9, FASTCALL_, BattleStack_DamageRandom);
 
         // set after attack abilities patches
         // blind
@@ -197,11 +168,12 @@ void CreatureAttackRandom::CreatePatches()
         // dread knigts double damage
         WriteHiHook(0x04436D9, FASTCALL_, BattleStack_DoubleDamageRandom);
 
-        // Cyclops: Wall Damage random
-        // WriteHiHook(0x0445C45, FASTCALL_, BattleStack_RandomToHitTargetedWall);
-        // WriteHiHook(0x0445C8C, FASTCALL_, BattleStack_RandomToSelectTargetedWall);
+        // luck control
+        WriteHiHook(0x0441557, FASTCALL_, BattleStack_LuckRandom); // melee attack
+        WriteHiHook(0x043F675, FASTCALL_, BattleStack_LuckRandom); // ranged attack
 
-        WriteHiHook(0x0445BE0, THISCALL_, combatMonster_00445BE0_AttackWall);
+        // Cyclops: Wall Damage random
+        WriteHiHook(0x0445BE0, THISCALL_, BattleStack_AttackWall);
         WriteLoHook(0x0445CBB, BattleStack_MakeBallisticShot);
     }
 }

@@ -6,12 +6,20 @@ CreatureSettingsManager::CreatureSettingsManager() : IGamePatch(_PI)
 {
     // Initialize all creature settings to default
     CreatePatches();
-    ResetAllCreatureSettings();
+    ResetCombatSettings();
 }
 
-void CreatureSettingsManager::ResetAllCreatureSettings() noexcept
+void CreatureSettingsManager::ResetCombatSettings() noexcept
 {
     libc::memset(combatCreatureSettings, 0, sizeof(combatCreatureSettings));
+
+    combatIsStarted = false;
+    tacticsPhaseRound = false;
+    userControlPoints = 0;
+    userControlPointsSpent = 0;
+    userActionsUsed = 0;
+
+    actionsUsedLog.Init();
 }
 
 CreatureSettingsManager &CreatureSettingsManager::GetInstance()
@@ -26,15 +34,19 @@ CreatureSettingsManager &CreatureSettingsManager::GetInstance()
 void TestInitiate(CreatureSettingsManager *instance)
 {
 
-    CombatCreatureSettings temp;
-    temp.positiveMorale = eTriggerState::ALWAYS;
-    temp.afterAttackAbility = eTriggerState::ALWAYS;
-    temp.damage = eDamageState::DAMAGE_MIN_100;
-    temp.doubleDamage = eTriggerState::ALWAYS;
+    CombatCreatureSettings tempAttacker;
+    tempAttacker.positiveMorale.triggerState = eTriggerState::ALWAYS;
+    tempAttacker.afterAttackAbility.triggerState = eTriggerState::ALWAYS;
+    tempAttacker.damage.triggerState = eDamageState::DAMAGE_MIN_100;
+    tempAttacker.doubleDamage.triggerState = eTriggerState::ALWAYS;
+    tempAttacker.positiveLuck.triggerState = eTriggerState::ALWAYS;
+    CombatCreatureSettings tempDefender;
+    tempDefender.negativeMorale.triggerState = eTriggerState::ALWAYS;
 
-    for (size_t i = 0; i < h3::limits::COMBAT_CREATURES; i++)
+    for (size_t i = 0; i <= h3::limits::COMBAT_CREATURES; i++)
     {
-        instance->SetCreatureSettings(&P_CombatManager->stacks[0][i], temp);
+        instance->SetCreatureSettings(0, i, tempAttacker);
+        instance->SetCreatureSettings(1, i, tempDefender);
     }
 }
 
@@ -42,8 +54,9 @@ void __stdcall CreatureSettingsManager::BattleMgr_StartBattle(HiHook *h, H3Comba
 {
 
     THISCALL_1(void, h->GetDefaultFunc(), _this);
+    instance->ResetCombatSettings();
+
     instance->combatIsStarted = false;
-    instance->ResetAllCreatureSettings();
     instance->tacticsPhaseRound = _this->tacticsPhase;
 
     if (_this->tacticsPhase)
@@ -99,6 +112,29 @@ void CreatureSettingsManager::SetCreatureSettings(const int side, const int inde
                                                   const CombatCreatureSettings &settings) noexcept
 {
     instance->combatCreatureSettings[side][index] = settings;
+}
+
+int CreatureSettingsManager::GetUserPoints() noexcept
+{
+    return instance->userControlPoints;
+}
+
+void CreatureSettingsManager::SetUserPoints(const int newSize) noexcept
+{
+    instance->userControlPoints = newSize;
+}
+
+BOOL CreatureSettingsManager::DecreaseUserPoints(const int toDecrease) noexcept
+{
+
+    if (instance->userControlPoints >= toDecrease)
+    {
+        instance->userControlPoints -= toDecrease;
+        instance->userControlPointsSpent += toDecrease;
+        return true;
+    }
+
+    return false;
 }
 
 // Implementation of patch creation

@@ -2,10 +2,14 @@
 class CreatureSettingsManager : public IGamePatch
 {
 
-    CombatCreatureSettings combatCreatureSettings[2][h3::limits::COMBAT_CREATURES];
+    CombatCreatureSettings combatCreatureSettings[2][h3::limits::COMBAT_CREATURES + 1];
 
     BOOL combatIsStarted = false;
     BOOL tacticsPhaseRound = false;
+    INT userControlPoints = 0;
+    INT userControlPointsSpent = 0;
+    INT userActionsUsed = 0;
+    H3String actionsUsedLog;
 
     static CreatureSettingsManager *instance;
 
@@ -16,8 +20,8 @@ class CreatureSettingsManager : public IGamePatch
   protected:
     virtual void CreatePatches() override;
 
+    void ResetCombatSettings() noexcept;
 
-    void ResetAllCreatureSettings() noexcept;
   public:
     static CreatureSettingsManager &GetInstance();
 
@@ -31,4 +35,8 @@ class CreatureSettingsManager : public IGamePatch
     static const CombatCreatureSettings &GetCreatureSettings(const int side, const int index) noexcept;
     static void SetCreatureSettings(const H3CombatCreature *creature, const CombatCreatureSettings &settings) noexcept;
     static void SetCreatureSettings(const int side, const int index, const CombatCreatureSettings &settings) noexcept;
+    static int GetUserPoints() noexcept;
+    static void SetUserPoints(const int newSize) noexcept;
+    static BOOL DecreaseUserPoints(const int toDecrease) noexcept;
+
 };

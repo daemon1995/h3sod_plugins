@@ -2,22 +2,37 @@
 #include "enums.h"
 struct CombatCreatureSettings
 {
+    struct AbilityChanger
+    {
+        eTriggerState triggerState = DEFAULT;
+        UINT duration = 0;
+    };
+    struct DamageChanger
+    {
+        eDamageState triggerState = DAMAGE_DEFAULT;
+        UINT duration = 0;
+    };
 
-	// turn probabilities
-    eTriggerState positiveMorale = DEFAULT;
-    eTriggerState negativeMorale = DEFAULT;
-    eTriggerState fear = DEFAULT;
 
-	// magic abilities
-    eTriggerState spellCasting = DEFAULT;
-    eTriggerState resurrection = DEFAULT;
-    eTriggerState resistance = DEFAULT;
+    // turn probabilities
+    AbilityChanger positiveMorale{};
+    AbilityChanger negativeMorale{};
+    AbilityChanger fear{};
+
+    // magic abilities
+    AbilityChanger spellCasting{};
+    AbilityChanger resurrection{};
+    AbilityChanger resistance{};
 
     // damage dealt
-    eTriggerState positiveLuck = DEFAULT;
-    eTriggerState negativeLuck = DEFAULT;
-    eTriggerState doubleDamage = DEFAULT;
-    eTriggerState wallAttackAim = DEFAULT;
-    eTriggerState afterAttackAbility = DEFAULT;
-    eDamageState damage = DAMAGE_DEFAULT;
+    AbilityChanger positiveLuck{};
+    AbilityChanger negativeLuck{};
+    AbilityChanger doubleDamage{};
+    AbilityChanger wallAttackAim{};
+    AbilityChanger afterAttackAbility{};
+
+    DamageChanger damage{};
+
+  public:
+    static int BattleStack_Random(HiHook *hook, const int min, const int max, const AbilityChanger &triggerState);
 };
