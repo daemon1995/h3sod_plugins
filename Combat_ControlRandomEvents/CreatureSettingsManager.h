@@ -2,6 +2,8 @@
 class CreatureSettingsManager : public IGamePatch
 {
 
+    Patch *newRoundPatch = nullptr;
+    Patch *endCombatPatch = nullptr;
     CombatCreatureSettings combatCreatureSettings[2][h3::limits::COMBAT_CREATURES + 1];
 
     BOOL combatIsStarted = false;
@@ -20,15 +22,17 @@ class CreatureSettingsManager : public IGamePatch
   protected:
     virtual void CreatePatches() override;
 
+  private:
     void ResetCombatSettings() noexcept;
+    void ResetAllcreatureSettings() noexcept;
 
   public:
     static CreatureSettingsManager &GetInstance();
 
   private:
     static void __stdcall BattleMgr_StartBattle(HiHook *h, H3CombatManager *_this);
-
     static void __stdcall BattleMgr_NewRound(HiHook *h, H3CombatManager *_this);
+    static void __stdcall BattleMgr_SetWinner(HiHook *h, H3CombatManager *_this, const INT side);
 
   public:
     static const CombatCreatureSettings &GetCreatureSettings(const H3CombatCreature *creature) noexcept;
@@ -38,5 +42,5 @@ class CreatureSettingsManager : public IGamePatch
     static int GetUserPoints() noexcept;
     static void SetUserPoints(const int newSize) noexcept;
     static BOOL DecreaseUserPoints(const int toDecrease) noexcept;
-
+    static void SetAbilityForAllCreatures(const AbilityChanger &ability, const BOOL enable) noexcept;
 };

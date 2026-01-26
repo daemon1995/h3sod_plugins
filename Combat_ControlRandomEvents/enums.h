@@ -17,3 +17,28 @@ enum eDamageState : unsigned int
     DAMAGE_MIN_75 = 5,
     DAMAGE_MIN_100 = DAMAGE_MAXIMAL,
 };
+
+enum eSettingsId
+{
+    POSITIVE_MORALE,
+    NEGATIVE_MORALE,
+    FEAR,
+    SPELL_CASTING,
+    RESURRECTION,
+    RESISTANCE,
+    POSITIVE_LUCK,
+    NEGATIVE_LUCK,
+    DOUBLE_DAMAGE,
+    WALL_ATTACK_AIM,
+    AFTER_ATTACK_ABILITY,
+    DAMAGE,
+    AMOUNT_OF_SETTINGS
+};
+struct AbilityChanger
+{
+    union {
+        eTriggerState triggerState;
+        eDamageState damageState = DAMAGE_DEFAULT;
+    };
+    INT duration = 0;
+};

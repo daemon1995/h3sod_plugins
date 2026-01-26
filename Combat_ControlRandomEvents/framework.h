@@ -4,7 +4,7 @@
                             // заголовков Windows
 // Файлы заголовков Windows
 #include <windows.h>
-
+#define NLOHMAN_JSON
 #include "..\headers\header.h"
 #include "enums.h"
 

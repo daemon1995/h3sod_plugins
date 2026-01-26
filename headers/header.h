@@ -54,14 +54,18 @@ class IGamePatch
     }
 
   public:
+    BOOL IsEnabled() const
+    {
+        return m_isEnabled;
+    }
     void SetEnabled(const bool state)
     {
         state ? _pi->ApplyAll() : _pi->UndoAll();
         m_isEnabled = state;
     }
-    void Undo()
+    void UndoAll()
     {
-        _pi->UndoAll();
+        SetEnabled(false);
     }
 
     // static IGamePatch * Get()  noexcept;

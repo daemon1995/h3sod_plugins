@@ -22,8 +22,6 @@ class CreatureAttackRandom : public IGamePatch
     const CombatCreatureSettings *currentSettings = nullptr;
     INT targetWallId = -1;
 
-
-
     std::unordered_map<eCreature, EventHandler> m_abilitiesMap;
 
     CreatureAttackRandom();

@@ -11,7 +11,7 @@ CreatureSettingsManager::CreatureSettingsManager() : IGamePatch(_PI)
 
 void CreatureSettingsManager::ResetCombatSettings() noexcept
 {
-    libc::memset(combatCreatureSettings, 0, sizeof(combatCreatureSettings));
+    ResetAllcreatureSettings();
 
     combatIsStarted = false;
     tacticsPhaseRound = false;
@@ -20,6 +20,17 @@ void CreatureSettingsManager::ResetCombatSettings() noexcept
     userActionsUsed = 0;
 
     actionsUsedLog.Init();
+}
+
+void CreatureSettingsManager::ResetAllcreatureSettings() noexcept
+{
+    for (size_t side = 0; side < 2; side++)
+    {
+        for (size_t i = 0; i <= h3::limits::COMBAT_CREATURES; i++)
+        {
+            combatCreatureSettings[side][i] = CombatCreatureSettings();
+        }
+    }
 }
 
 CreatureSettingsManager &CreatureSettingsManager::GetInstance()
@@ -35,13 +46,13 @@ void TestInitiate(CreatureSettingsManager *instance)
 {
 
     CombatCreatureSettings tempAttacker;
-    tempAttacker.positiveMorale.triggerState = eTriggerState::ALWAYS;
-    tempAttacker.afterAttackAbility.triggerState = eTriggerState::ALWAYS;
-    tempAttacker.damage.triggerState = eDamageState::DAMAGE_MIN_100;
-    tempAttacker.doubleDamage.triggerState = eTriggerState::ALWAYS;
-    tempAttacker.positiveLuck.triggerState = eTriggerState::ALWAYS;
+    tempAttacker.abilities.positiveMorale.triggerState = eTriggerState::ALWAYS;
+    tempAttacker.abilities.afterAttackAbility.triggerState = eTriggerState::ALWAYS;
+    tempAttacker.abilities.damage.damageState = eDamageState::DAMAGE_MIN_100;
+    tempAttacker.abilities.doubleDamage.triggerState = eTriggerState::ALWAYS;
+    tempAttacker.abilities.positiveLuck.triggerState = eTriggerState::ALWAYS;
     CombatCreatureSettings tempDefender;
-    tempDefender.negativeMorale.triggerState = eTriggerState::ALWAYS;
+    tempDefender.abilities.negativeMorale.triggerState = eTriggerState::ALWAYS;
 
     for (size_t i = 0; i <= h3::limits::COMBAT_CREATURES; i++)
     {
@@ -54,6 +65,50 @@ void __stdcall CreatureSettingsManager::BattleMgr_StartBattle(HiHook *h, H3Comba
 {
 
     THISCALL_1(void, h->GetDefaultFunc(), _this);
+
+    // check if combat has human player
+
+    auto &moraleHandler = CreatureMoraleRandom::GetInstance();
+    IGamePatch *appliedPatches[] = {
+        &CreatureMoraleRandom::GetInstance(),
+        &CreatureAttackRandom::GetInstance(),
+    };
+
+    auto &newRoundPatch = instance->newRoundPatch;
+    auto &endCombatPatch = instance->endCombatPatch;
+
+    const BOOL combatHasHuman = _this->isHuman[0] || _this->isHuman[1];
+
+    // if not a human player, disable all patches
+    if (!combatHasHuman)
+    {
+        for (auto &i : appliedPatches)
+        {
+            if (i->IsEnabled())
+                i->SetEnabled(false);
+        }
+
+        if (newRoundPatch->IsApplied())
+            newRoundPatch->Undo();
+
+        if (endCombatPatch->IsApplied())
+            endCombatPatch->Undo();
+    }
+    // else, enable all patches and apply new round patch
+    else
+    {
+        for (auto &i : appliedPatches)
+        {
+            if (!i->IsEnabled())
+                i->SetEnabled(true);
+        }
+
+        if (!newRoundPatch->IsApplied())
+            newRoundPatch->Apply();
+        if (!endCombatPatch->IsApplied())
+            endCombatPatch->Apply();
+    }
+
     instance->ResetCombatSettings();
 
     instance->combatIsStarted = false;
@@ -91,6 +146,12 @@ void __stdcall CreatureSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatMa
     {
         instance->combatIsStarted = true;
     }
+}
+
+void __stdcall CreatureSettingsManager::BattleMgr_SetWinner(HiHook *h, H3CombatManager *_this, const INT side)
+{
+    THISCALL_2(void, h->GetDefaultFunc(), _this, side);
+    instance->ResetCombatSettings();
 }
 
 const CombatCreatureSettings &CreatureSettingsManager::GetCreatureSettings(const H3CombatCreature *creature) noexcept
@@ -137,14 +198,28 @@ BOOL CreatureSettingsManager::DecreaseUserPoints(const int toDecrease) noexcept
     return false;
 }
 
+void CreatureSettingsManager::SetAbilityForAllCreatures(const AbilityChanger& ability, const BOOL enable) noexcept
+{
+    for (size_t side = 0; side < 2; side++)
+    {
+        for (size_t i = 0; i <= h3::limits::COMBAT_CREATURES; i++)
+        {
+            CombatCreatureSettings& settings = instance->combatCreatureSettings[side][i];
+           // ability(settings, enable);
+        }
+	}
+}
+
 // Implementation of patch creation
 void CreatureSettingsManager::CreatePatches()
 {
     if (!m_isInited)
     {
         m_isInited = true;
-
-        WriteHiHook(0x0475800, THISCALL_, BattleMgr_NewRound);
+        m_isEnabled = true;
         WriteHiHook(0x0462C8A, THISCALL_, BattleMgr_StartBattle);
+
+        newRoundPatch = WriteHiHook(0x0475800, THISCALL_, BattleMgr_NewRound);
+        endCombatPatch = WriteHiHook(0x0475CFD, THISCALL_, BattleMgr_SetWinner);
     }
 }

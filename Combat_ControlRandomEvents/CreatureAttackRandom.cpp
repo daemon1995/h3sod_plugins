@@ -28,7 +28,7 @@ int __stdcall CreatureAttackRandom::BattleStack_DamageRandom(HiHook *h, const in
 
     if (instance->currentSettings)
     {
-        switch (instance->currentSettings->damage.triggerState)
+        switch (instance->currentSettings->abilities.damage.triggerState)
         {
         case eDamageState::DAMAGE_DEFAULT:
             break;
@@ -53,16 +53,19 @@ int __stdcall CreatureAttackRandom::BattleStack_DamageRandom(HiHook *h, const in
 
 int __stdcall CreatureAttackRandom::BattleStack_AfterAttackAbilityRandom(HiHook *hook, const int min, const int max)
 {
-    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->afterAttackAbility);
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max,
+                                                      instance->currentSettings->At(eSettingsId::AFTER_ATTACK_ABILITY));
 }
 
 int __stdcall CreatureAttackRandom::BattleStack_DoubleDamageRandom(HiHook *hook, const int min, const int max)
 {
-    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->doubleDamage);
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max,
+                                                      instance->currentSettings->At(eSettingsId::DOUBLE_DAMAGE));
 }
 int __stdcall CreatureAttackRandom::BattleStack_LuckRandom(HiHook *hook, const int min, const int max)
 {
-    return CombatCreatureSettings::BattleStack_Random(hook, min, max, instance->currentSettings->positiveLuck);
+    return CombatCreatureSettings::BattleStack_Random(hook, min, max,
+                                                      instance->currentSettings->At(eSettingsId::POSITIVE_LUCK));
 }
 
 void __stdcall CreatureAttackRandom::BattleStack_AttackWall(HiHook *h, H3CombatCreature *attacker, const int wallId,
@@ -71,7 +74,7 @@ void __stdcall CreatureAttackRandom::BattleStack_AttackWall(HiHook *h, H3CombatC
     // store creature type before random function
     instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
 
-    if (instance->currentSettings->wallAttackAim.triggerState)
+    if (instance->currentSettings->abilities.wallAttackAim.triggerState)
     {
         instance->targetWallId = wallId; // always hit the wall
     }
