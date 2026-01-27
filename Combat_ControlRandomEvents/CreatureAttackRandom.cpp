@@ -81,6 +81,10 @@ void __stdcall CreatureAttackRandom::BattleStack_AttackWall(HiHook *h, H3CombatC
     THISCALL_3(void, h->GetDefaultFunc(), attacker, wallId, damages);
     instance->currentSettings = nullptr;
 }
+BOOL CreatureAttackRandom::BattleStack_HasAfterAttackAbility(const H3CombatCreature *creature)
+{
+    return instance->m_abilitiesMap.count(eCreature(creature->type)) > 0;
+}
 _LHF_(CreatureAttackRandom::BattleStack_MakeBallisticShot)
 {
 

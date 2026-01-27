@@ -33,8 +33,136 @@ void CreatureSettingsManager::ResetAllcreatureSettings() noexcept
     }
 }
 
+void CreatureSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mgr, H3Msg *msg)
+{
+    if (msg->IsKeyPress())
+    {
+        const H3CombatCreature *combatCreature = mgr->squares[mgr->creatureAtMousePos].GetMonster();
+        CombatCreatureSettings *creatureSettings =
+            &combatCreatureSettings[combatCreature->side][combatCreature->sideIndex];
+        creatureSettings->ownerCreature = combatCreature;
+        const bool shiftPressed = STDCALL_1(SHORT, PtrAt(0x63A294), VK_SHIFT) & 0x800;
+        BOOL saveToLog = TRUE;
+        switch (msg->KeyPressed())
+        {
+
+        case eVKey::H3VK_G: // fear
+            if (creatureSettings->IsAffected(eSettingsId::FEAR))
+            {
+            }
+            else
+            {
+                saveToLog = FALSE;
+                libc::sprintf(h3_TextBuffer,
+                              "Creature Settings Manager: this creature is not affected by fear to change");
+            }
+            break;
+
+        case eVKey::H3VK_J: // resist
+            if (creatureSettings->IsAffected(eSettingsId::RESISTANCE))
+            {
+            }
+            else
+            {
+                saveToLog = FALSE;
+                libc::sprintf(h3_TextBuffer,
+                              "Creature Settings Manager: this creature is not affected by resistance to change");
+            }
+            break;
+
+        case eVKey::H3VK_K: // damage
+            if (creatureSettings->IsAffected(eSettingsId::DAMAGE))
+            {
+            }
+            else
+            {
+                saveToLog = FALSE;
+                libc::sprintf(h3_TextBuffer,
+                              "Creature Settings Manager: this creature is not affected by damage to change");
+            }
+
+            break;
+        case eVKey::H3VK_X: // after attack ability// spell casting// resurection// double damage (shift) // wall attack
+                            // aim
+
+            if (creatureSettings->IsAffected(eSettingsId::AFTER_ATTACK_ABILITY))
+            {
+            }
+            else if (creatureSettings->IsAffected(eSettingsId::SPELL_CASTING))
+            {
+            }
+            else if (creatureSettings->IsAffected(eSettingsId::RESURRECTION))
+            {
+            }
+            else if (creatureSettings->IsAffected(eSettingsId::WALL_ATTACK_AIM))
+            {
+            }
+            else if (creatureSettings->IsAffected(eSettingsId::DOUBLE_DAMAGE) && shiftPressed)
+            {
+            }
+            else
+            {
+                saveToLog = FALSE;
+                libc::sprintf(h3_TextBuffer,
+                              "Creature Settings Manager: this creature is not affected by any of these abilities to "
+                              "change");
+            }
+
+            break;
+        case eVKey::H3VK_N: // luck (shift)
+
+            if (shiftPressed)
+            {
+            }
+            else if (creatureSettings->IsAffected(eSettingsId::POSITIVE_LUCK) && combatCreature->luck > 0)
+            {
+            }
+
+            break;
+
+        case eVKey::H3VK_M: // morale (shift)
+            if (shiftPressed)
+            {
+            }
+            else
+            {
+                if (creatureSettings->IsAffected(eSettingsId::POSITIVE_MORALE) && combatCreature->morale > 0)
+                {
+                }
+                else if (creatureSettings->IsAffected(eSettingsId::NEGATIVE_MORALE) && combatCreature->morale < 0)
+                {
+                }
+                else
+                {
+                    saveToLog = FALSE;
+                    libc::sprintf(h3_TextBuffer,
+                                  "Creature Settings Manager: this creature doesn't have morale to change");
+                }
+            }
+
+            break;
+        default:
+            creatureSettings = nullptr;
+            return;
+        }
+        creatureSettings = nullptr;
+        ReportActionUsage(mgr, h3_TextBuffer, saveToLog);
+    }
+}
+
+void CreatureSettingsManager::ReportActionUsage(H3CombatManager *mgr, LPCSTR msg, const BOOL saveLog)
+{
+    mgr->AddStatusMessage(h3_TextBuffer);
+    if (saveLog)
+    {
+        actionsUsedLog.Append('\n').Append(msg);
+    }
+}
+
 CreatureSettingsManager &CreatureSettingsManager::GetInstance()
 {
+
+    P_CombatManager->creatureAtMousePos;
     if (!instance)
         instance = new CreatureSettingsManager();
     else
@@ -51,6 +179,8 @@ void TestInitiate(CreatureSettingsManager *instance)
     tempAttacker.abilities.damage.damageState = eDamageState::DAMAGE_MIN_100;
     tempAttacker.abilities.doubleDamage.triggerState = eTriggerState::ALWAYS;
     tempAttacker.abilities.positiveLuck.triggerState = eTriggerState::ALWAYS;
+    tempAttacker.abilities.wallAttackAim.triggerState = eTriggerState::ALWAYS;
+
     CombatCreatureSettings tempDefender;
     tempDefender.abilities.negativeMorale.triggerState = eTriggerState::ALWAYS;
 
@@ -126,6 +256,20 @@ void __stdcall CreatureSettingsManager::BattleMgr_StartBattle(HiHook *h, H3Comba
     }
 }
 
+int __stdcall CreatureSettingsManager::BattleMgr_ProcessAction_KeyPressed(HiHook *h, H3CombatManager *_this, H3Msg *msg)
+{
+    int result = THISCALL_2(int, h->GetDefaultFunc(), _this, msg);
+
+    if (_this->autoCombat || H3AutoSolo::Get())
+    {
+        return result;
+    }
+
+    instance->SwitchBattleStackAbilityByHotKey(_this, msg);
+
+    return result;
+}
+
 // isn't executed if combat doesn't have tactics phase
 void __stdcall CreatureSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatManager *_this)
 {
@@ -198,16 +342,16 @@ BOOL CreatureSettingsManager::DecreaseUserPoints(const int toDecrease) noexcept
     return false;
 }
 
-void CreatureSettingsManager::SetAbilityForAllCreatures(const AbilityChanger& ability, const BOOL enable) noexcept
+void CreatureSettingsManager::SetAbilityForAllCreatures(const AbilityChanger &ability, const BOOL enable) noexcept
 {
     for (size_t side = 0; side < 2; side++)
     {
         for (size_t i = 0; i <= h3::limits::COMBAT_CREATURES; i++)
         {
-            CombatCreatureSettings& settings = instance->combatCreatureSettings[side][i];
-           // ability(settings, enable);
+            CombatCreatureSettings &settings = instance->combatCreatureSettings[side][i];
+            // ability(settings, enable);
         }
-	}
+    }
 }
 
 // Implementation of patch creation
@@ -218,8 +362,13 @@ void CreatureSettingsManager::CreatePatches()
         m_isInited = true;
         m_isEnabled = true;
         WriteHiHook(0x0462C8A, THISCALL_, BattleMgr_StartBattle);
+        WriteHiHook(0x04746B0, THISCALL_, BattleMgr_ProcessAction_KeyPressed);
 
         newRoundPatch = WriteHiHook(0x0475800, THISCALL_, BattleMgr_NewRound);
         endCombatPatch = WriteHiHook(0x0475CFD, THISCALL_, BattleMgr_SetWinner);
     }
+}
+
+void PluginText::Load()
+{
 }

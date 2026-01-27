@@ -34,7 +34,6 @@ class CreatureAttackRandom : public IGamePatch
     void CreateAbilityEvent(const eCreature creature, const DWORD patchAddress, const void *functionPtr,
                             const eTriggerState trigger = DEFAULT, const eVKey hotkey = eVKey(0));
 
-  public:
     static char __stdcall BattleStack_AttackMelee(HiHook *hook, const H3CombatCreature *attacker,
                                                   const H3CombatCreature *defender, const int direction);
     static void __stdcall BattleStack_Shoot(HiHook *hook, const H3CombatCreature *attacker,
@@ -49,5 +48,7 @@ class CreatureAttackRandom : public IGamePatch
     static _LHF_(BattleStack_MakeBallisticShot);
 
   public:
+    static BOOL BattleStack_HasAfterAttackAbility(const H3CombatCreature *creature);
+
     static CreatureAttackRandom &GetInstance();
 };

@@ -1,4 +1,14 @@
 #pragma once
+
+struct PluginText : IPluginText
+{
+
+    LPCSTR abilityTexts[eSettingsId::AMOUNT_OF_SETTINGS] = {};
+
+  public:
+    void Load() override;
+};
+
 class CreatureSettingsManager : public IGamePatch
 {
 
@@ -25,16 +35,19 @@ class CreatureSettingsManager : public IGamePatch
   private:
     void ResetCombatSettings() noexcept;
     void ResetAllcreatureSettings() noexcept;
-
-  public:
-    static CreatureSettingsManager &GetInstance();
+    void SwitchBattleStackAbilityByHotKey(H3CombatManager *mgr, H3Msg *msg);
+    void ReportActionUsage(H3CombatManager *mgr, LPCSTR msg, const BOOL saveLog);
 
   private:
     static void __stdcall BattleMgr_StartBattle(HiHook *h, H3CombatManager *_this);
+    static int __stdcall BattleMgr_ProcessAction_KeyPressed(HiHook *h, H3CombatManager *_this, H3Msg *msg);
+
     static void __stdcall BattleMgr_NewRound(HiHook *h, H3CombatManager *_this);
     static void __stdcall BattleMgr_SetWinner(HiHook *h, H3CombatManager *_this, const INT side);
 
   public:
+    static CreatureSettingsManager &GetInstance();
+
     static const CombatCreatureSettings &GetCreatureSettings(const H3CombatCreature *creature) noexcept;
     static const CombatCreatureSettings &GetCreatureSettings(const int side, const int index) noexcept;
     static void SetCreatureSettings(const H3CombatCreature *creature, const CombatCreatureSettings &settings) noexcept;

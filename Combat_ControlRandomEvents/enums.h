@@ -41,4 +41,18 @@ struct AbilityChanger
         eDamageState damageState = DAMAGE_DEFAULT;
     };
     INT duration = 0;
+    eTriggerState GetNextTriggerState() const
+    {
+        if (triggerState >= eTriggerState::NEVER)
+            return eTriggerState::DEFAULT;
+        else
+            return static_cast<eTriggerState>(triggerState + 1);
+    }
+    eDamageState GetNextDamageState() const
+    {
+        if (damageState >= eDamageState::DAMAGE_MIN_75)
+            return eDamageState::DAMAGE_DEFAULT;
+        else
+            return static_cast<eDamageState>(damageState + 1);
+    }
 };

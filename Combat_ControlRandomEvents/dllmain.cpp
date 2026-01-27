@@ -11,20 +11,7 @@ namespace dllText
 LPCSTR instanceName = "EraPlugin." PROJECT_NAME ".daemon_n";
 }
 
-void __stdcall BattleMgr_ShowMonStatDlg(HiHook *hook, H3CombatManager *mgr, H3CombatCreature *creature,
-                                        BOOL isRightClick)
-{
 
-    const bool controlPressed = STDCALL_1(SHORT, PtrAt(0x63A294), VK_SHIFT) & 0x800;
-    if (controlPressed)
-    {
-        CombatCreatureSettingsDlg::ShowSettingsDlg(creature, isRightClick);
-    }
-    else
-    {
-        THISCALL_3(void, hook->GetDefaultFunc(), mgr, creature, isRightClick);
-    }
-}
 
 _LHF_(HooksInit)
 {
@@ -32,7 +19,7 @@ _LHF_(HooksInit)
     CreatureSettingsManager::GetInstance();
     CreatureMoraleRandom::GetInstance();
 
-    _PI->WriteHiHook(0x468440, THISCALL_, BattleMgr_ShowMonStatDlg);
+    _PI->WriteHiHook(0x468440, THISCALL_, CombatCreatureSettingsDlg::BattleMgr_ShowMonStatDlg);
     return EXEC_DEFAULT;
 }
 
