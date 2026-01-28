@@ -1,6 +1,7 @@
 // dllmain.cpp : Определяет точку входа для приложения DLL.
 #define _H3API_PLUGINS_
 #include "framework.h"
+#include "PluginText.h"
 
 using namespace h3;
 

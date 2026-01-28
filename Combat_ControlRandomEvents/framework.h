@@ -8,6 +8,7 @@
 #include "..\headers\header.h"
 #include "enums.h"
 
+
 #include "CombatCreatureSettings.h"
 #include "CombatCreatureSettingsDlg.h"
 #include "CreatureAttackRandom.h"

@@ -32,9 +32,9 @@ int __stdcall CreatureAttackRandom::BattleStack_DamageRandom(HiHook *h, const in
         {
         case eDamageState::DAMAGE_DEFAULT:
             break;
-        case eDamageState::DAMAGE_MINIMAL:
+        case eDamageState::DAMAGE_MINIMUM:
             return min;
-        case eDamageState::DAMAGE_MAXIMAL:
+        case eDamageState::DAMAGE_MAXIMUM:
             return max;
         case eDamageState::DAMAGE_MIN_25:
             return min + ((max - min) >> 2);
@@ -65,7 +65,7 @@ int __stdcall CreatureAttackRandom::BattleStack_DoubleDamageRandom(HiHook *hook,
 int __stdcall CreatureAttackRandom::BattleStack_LuckRandom(HiHook *hook, const int min, const int max)
 {
     return CombatCreatureSettings::BattleStack_Random(hook, min, max,
-                                                      instance->currentSettings->At(eSettingsId::POSITIVE_LUCK));
+                                                      instance->currentSettings->At(eSettingsId::POSITIVE_LUCK_UNIT));
 }
 
 void __stdcall CreatureAttackRandom::BattleStack_AttackWall(HiHook *h, H3CombatCreature *attacker, const int wallId,

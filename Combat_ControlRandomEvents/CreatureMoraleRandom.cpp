@@ -19,7 +19,7 @@ void __stdcall CreatureMoraleRandom::BattleMgr_CheckGoodMorale(HiHook *h, const 
 int __stdcall CreatureMoraleRandom::BattleStack_PositiveMoraleRandom(HiHook *hook, const int min, const int max)
 {
     return CombatCreatureSettings::BattleStack_Random(hook, min, max,
-                                                      instance->currentSettings->At(eSettingsId::POSITIVE_MORALE));
+                                                      instance->currentSettings->At(eSettingsId::POSITIVE_MORALE_UNIT));
 }
 
 int __stdcall CreatureMoraleRandom::BattleMgr_CheckBadMorale(HiHook *h, const H3CombatManager *_this, const int side,
@@ -34,14 +34,14 @@ int __stdcall CreatureMoraleRandom::BattleStack_NegativeMoraleRandom(HiHook *hoo
 {
 
     return CombatCreatureSettings::BattleStack_Random(hook, min, max,
-                                                      instance->currentSettings->At(eSettingsId::NEGATIVE_MORALE));
+                                                      instance->currentSettings->At(eSettingsId::NEGATIVE_MORALE_UNIT));
 }
 
 int __stdcall CreatureMoraleRandom::AIBattleStack_NegativeMoraleRandom(HiHook *hook, const int min, const int max)
 {
     if (instance->currentSettings)
     {
-        switch (instance->currentSettings->At(eSettingsId::NEGATIVE_MORALE).triggerState)
+        switch (instance->currentSettings->At(eSettingsId::NEGATIVE_MORALE_UNIT).triggerState)
         {
         case eTriggerState::ALWAYS:
             return max; // always trigger ability

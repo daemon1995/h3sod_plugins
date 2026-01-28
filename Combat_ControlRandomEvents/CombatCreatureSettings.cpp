@@ -37,10 +37,12 @@ AbilityChanger &CombatCreatureSettings::operator[](const eSettingsId id)
 
 BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCreature *creature) const
 {
-    if (!creature && ownerCreature)
+    if (!creature || ownerCreature)
         creature = ownerCreature;
 
     if (!creature)
+        return FALSE;
+    if (creature->numberAlive < 1)
         return FALSE;
 
     const auto &info = creature->info;
@@ -48,7 +50,7 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
     //    const AbilityChanger &ability = asArray[id];
     switch (id)
     {
-    case POSITIVE_MORALE:
+    case POSITIVE_MORALE_UNIT:
         if (P_CombatManager->specialTerrain == 2)
         {
             return false;
@@ -64,7 +66,7 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
             }
         }
 
-    case NEGATIVE_MORALE:
+    case NEGATIVE_MORALE_UNIT:
         return !info.noMorale; // || creature->info.undead;
     case FEAR:
         return !(info.noMorale || creatureType == eCreature::AZURE_DRAGON); // || creature->info.undead;
@@ -75,9 +77,9 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
 
     case RESURRECTION:
         return creatureType == eCreature::PHOENIX;
-    case RESISTANCE:
+    case MAGIC_RESISTANCE:
         return false;
-    case POSITIVE_LUCK:
+    case POSITIVE_LUCK_UNIT:
         if (P_CombatManager->specialTerrain == 2)
         {
             return false;
@@ -95,11 +97,11 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
         return true;
     case DOUBLE_DAMAGE:
         return creatureType == eCreature::DREAD_KNIGHT;
-    case WALL_ATTACK_AIM:
+    case WALL_ATTACK:
         return info.destroyWalls;
     case AFTER_ATTACK_ABILITY:
         return CreatureAttackRandom::BattleStack_HasAfterAttackAbility(creature);
-    case DAMAGE:
+    case DAMAGE_VARIATION:
         return info.damageLow < info.damageHigh;
     default:
         break;

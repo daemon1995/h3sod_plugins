@@ -1,14 +1,6 @@
 #pragma once
 
-struct PluginText : IPluginText
-{
-
-    LPCSTR abilityTexts[eSettingsId::AMOUNT_OF_SETTINGS] = {};
-
-  public:
-    void Load() override;
-};
-
+struct PluginText;
 class CreatureSettingsManager : public IGamePatch
 {
 
@@ -22,7 +14,7 @@ class CreatureSettingsManager : public IGamePatch
     INT userControlPointsSpent = 0;
     INT userActionsUsed = 0;
     H3String actionsUsedLog;
-
+    PluginText *pluginText = nullptr;
     static CreatureSettingsManager *instance;
 
   private:
