@@ -14,7 +14,7 @@ struct PluginText : IPluginText
         "combat_start": "Control Combat randomness plugin inited. Attempts Left: \"%d\"\nSHIFT+Left/Right-click on
     combat creature to change it's settings", "text": "text", "unit_ability_switched": "For unit \"%s\" the ability
     \"%s\" is switched to the state \"%s.\"", "combat_ability_switched": "For all the combat units the ability \"%s\" is
-    switched to state \"%s.\"", "combat_ability_triggered": "For unit \"%s\" the ability \"%s\" is switched with a state
+    switched to state \"%s.\"", "unit_ability_triggered": "For unit \"%s\" the ability \"%s\" is switched with a state
     \"%s\". Attempts used: \"%d\". Attempts left: \"%d\"", "combat_ability_error": { "no_attempts_left": "Warning: No
     attempts left for ability \"%s.\". Attempts used: \"%d.\"", "no_effect": "Warning: Ability \"%s\" can't affect the
     unit \"%s.\""
@@ -26,7 +26,8 @@ struct PluginText : IPluginText
         std::string text;
         std::string unitAbilitySwitched;
         std::string combatAbilitySwitched;
-        std::string combatAbilityTriggered;
+
+        std::string unitAbilityTriggered;
         struct
         {
             std::string noAttemptsLeft;
@@ -54,11 +55,12 @@ struct PluginText : IPluginText
 
     BOOL LoadTextFromJsonFile(const std::string &fileName);
     void ReadJsonStringFieldToArray(const nlohmann::json &j, const std::string &baseKey, const LPCSTR *keys,
-                                     BaseText *baseTextArray, const size_t arraySize);
+                                    BaseText *baseTextArray, const size_t arraySize);
 
   public:
     static PluginText &GetInstance();
     static LPCSTR GetDlgText(const eSettingsId settingId, const H3CombatCreature *creature);
-    static LPCSTR GetHintText(const eSettingsId settingId, const H3CombatCreature *creature, const BOOL success);
+    static LPCSTR GetHintText(const eSettingsId settingId, const H3CombatCreature *creature,
+                              const eAbilitySwitchError errorType);
     static LPCSTR GetStateText(const eSettingsId settingId, const AbilityChanger &changer);
 };

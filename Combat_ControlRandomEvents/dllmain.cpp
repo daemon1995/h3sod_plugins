@@ -1,8 +1,10 @@
 // dllmain.cpp : Определяет точку входа для приложения DLL.
 #define _H3API_PLUGINS_
 #include "framework.h"
+
 #include "PluginText.h"
 
+#include "CreatureMagicRandom.h"
 using namespace h3;
 
 Patcher *globalPatcher = nullptr;
@@ -12,13 +14,12 @@ namespace dllText
 LPCSTR instanceName = "EraPlugin." PROJECT_NAME ".daemon_n";
 }
 
-
-
 _LHF_(HooksInit)
 {
     CreatureAttackRandom::GetInstance();
     CreatureSettingsManager::GetInstance();
     CreatureMoraleRandom::GetInstance();
+    CreatureMagicRandom::GetInstance();
 
     _PI->WriteHiHook(0x468440, THISCALL_, CombatCreatureSettingsDlg::BattleMgr_ShowMonStatDlg);
     return EXEC_DEFAULT;

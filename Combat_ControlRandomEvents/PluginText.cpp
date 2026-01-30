@@ -2,6 +2,7 @@
 
 #include "framework.h"
 
+#include "CreatureSettingsManager.h"
 #include "PluginText.h"
 
 using json = nlohmann::json;
@@ -16,23 +17,48 @@ PluginText &PluginText::GetInstance()
     }
     return *instance;
 }
-LPCSTR PluginText::GetHintText(const eSettingsId settingId, const H3CombatCreature *creature, const BOOL success)
+LPCSTR PluginText::GetHintText(const eSettingsId settingId, const H3CombatCreature *creature,
+                               const eAbilitySwitchError errorType)
 {
 
-    if (!success)
-    {
-    }
+    if (settingId <= eSettingsId::NONE || settingId >= eSettingsId::AMOUNT_OF_SETTINGS)
+        return h3_NullString;
 
-    switch (settingId)
-    {
-    case NONE:
+    const auto &hintBarText = instance->hintBarText;
+    LPCSTR abilityName = instance->abilityText[settingId].name.c_str();
+    LPCSTR creatureName = creature->info.GetCreatureName(creature->numberAlive);
 
-    case eSettingsId::POSITIVE_MORALE_UNIT:
+    switch (errorType)
+    {
+    case ABILITY_SWITCH_NO_ATTEMPTS_LEFT:
+        libc::sprintf(h3_TextBuffer, hintBarText.combatAbilityError.noAttemptsLeft.c_str(), abilityName,
+                      CreatureSettingsManager::GetUserPoints());
+        break;
+    case ABILITY_SWITCH_NO_EFFECT:
+        libc::sprintf(h3_TextBuffer, hintBarText.combatAbilityError.noEffect.c_str(), abilityName, creatureName);
+        break;
+    case ABILITY_SWITCH_NO_ABILITY:
+        libc::sprintf(h3_TextBuffer, hintBarText.combatAbilityError.noAbility.c_str(), creatureName);
+        break;
     default:
+        const auto& triggerStateName = instance->triggerStates[eTriggerState::ALWAYS].name.c_str();
+
+        switch (settingId)
+        {
+        case eSettingsId::POSITIVE_MORALE_ALL:
+        case eSettingsId::NEGATIVE_MORALE_ALL:
+        case eSettingsId::POSITIVE_LUCK_ALL:
+        case eSettingsId::NEGATIVE_LUCK_ALL:
+            libc::sprintf(h3_TextBuffer, hintBarText.combatAbilitySwitched.c_str(), abilityName, triggerStateName);
+            break;
+        default:
+            libc::sprintf(h3_TextBuffer, hintBarText.unitAbilitySwitched.c_str(), creatureName, abilityName,
+                          triggerStateName);
+            break;
+        }
         break;
     }
-
-    return LPCSTR();
+    return h3_TextBuffer;
 }
 //
 // LPCSTR PluginText::GetDlgText(const eSettingsId settingId, const H3CombatCreature *creature)
@@ -50,7 +76,7 @@ LPCSTR PluginText::GetHintText(const eSettingsId settingId, const H3CombatCreatu
 //    if (settingId < eSettingsId::POSITIVE_MORALE_UNIT || settingId >= eSettingsId::AMOUNT_OF_SETTINGS)
 //        return h3_NullString;
 //
-//    if (settingId == eSettingsId::DAMAGE_VARIATION)
+//    if (settingId == eSettingsId::DAMAGE_VARIATION_FIRST)
 //    {
 //        return instance->stateText.damageStates[changer.damageState];
 //    }
@@ -117,22 +143,26 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
     json j;
     f >> j;
 
-    static constexpr LPCSTR abilityKeys[] = {"positive_morale_unit",
-                                             "positive_morale_all",
-                                             "negative_morale_unit",
-                                             "negative_morale_all",
-                                             "fear",
-                                             "spell_casting",
-                                             "resurrection",
-                                             "magic_resistance",
-                                             "positive_luck_unit",
-                                             "positive_luck_all",
-                                             "negative_luck_unit",
-                                             "negative_luck_all",
-                                             "double_damage",
-                                             "wall_attack",
-                                             "after_attack_ability",
-                                             "damage_variation"};
+    static constexpr LPCSTR abilityKeys[] = {
+        "positive_morale_unit",
+        "positive_morale_all",
+        "negative_morale_unit",
+        "negative_morale_all",
+        "fear",
+        "spell_casting",
+        "resurrection",
+        "magic_resistance",
+        "positive_luck_unit",
+        "positive_luck_all",
+        "negative_luck_unit",
+        "negative_luck_all",
+        "double_damage",
+        "wall_attack",
+        "after_attack_ability",
+        "damage_variation_first",
+        "damage_variation_second",
+    };
+
     static_assert(std::size(abilityKeys) == eSettingsId::AMOUNT_OF_SETTINGS, "Ability keys size mismatch");
 
     ReadJsonStringFieldToArray(j, "abilities", abilityKeys, abilityText, std::size(abilityKeys));
@@ -199,7 +229,7 @@ void PluginText::HintBarText::LoadFromJson(const nlohmann::json &j)
     }
     if (hintBarObj.contains("combat_ability_triggered") && hintBarObj["combat_ability_triggered"].is_string())
     {
-        combatAbilityTriggered = hintBarObj["combat_ability_triggered"].get<std::string>();
+        unitAbilityTriggered = hintBarObj["unit_ability_triggered"].get<std::string>();
     }
     if (hintBarObj.contains("combat_ability_error") && hintBarObj["combat_ability_error"].is_object())
     {

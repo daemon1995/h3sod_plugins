@@ -1,4 +1,6 @@
 #pragma once
+
+
 class CombatCreatureSettingsDlg : public H3Dlg
 
 {
@@ -37,7 +39,7 @@ class CombatCreatureSettingsDlg : public H3Dlg
     virtual ~CombatCreatureSettingsDlg();
 
   protected:
-    virtual INT DialogProc(H3Msg &msg) override;
+    virtual BOOL DialogProc(H3Msg &msg) override;
 
   private:
     void CreateSettingsItems();

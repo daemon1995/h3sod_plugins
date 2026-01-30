@@ -4,13 +4,21 @@ struct PluginText;
 class CreatureSettingsManager : public IGamePatch
 {
 
+    enum eLogType
+    {
+        LOG_TYPE_SCREEN,
+        LOG_TYPE_BATTLE_LOG,
+        LOG_TYPE_BATTLE_HINT,
+    };
+
+    eLogType logType = LOG_TYPE_SCREEN;
     Patch *newRoundPatch = nullptr;
     Patch *endCombatPatch = nullptr;
     CombatCreatureSettings combatCreatureSettings[2][h3::limits::COMBAT_CREATURES + 1];
 
     BOOL combatIsStarted = false;
     BOOL tacticsPhaseRound = false;
-    INT userControlPoints = 0;
+    INT userControlPoints = 1230;
     INT userControlPointsSpent = 0;
     INT userActionsUsed = 0;
     H3String actionsUsedLog;
@@ -28,7 +36,8 @@ class CreatureSettingsManager : public IGamePatch
     void ResetCombatSettings() noexcept;
     void ResetAllcreatureSettings() noexcept;
     void SwitchBattleStackAbilityByHotKey(H3CombatManager *mgr, H3Msg *msg);
-    void ReportActionUsage(H3CombatManager *mgr, LPCSTR msg, const BOOL saveLog);
+    void ReportActionUsage(H3CombatManager *mgr, LPCSTR msg, const eLogType logType);
+    void SaveActionUsageToLog(H3CombatManager *mgr, const CombatCreatureSettings *creatureSettings);
 
   private:
     static void __stdcall BattleMgr_StartBattle(HiHook *h, H3CombatManager *_this);

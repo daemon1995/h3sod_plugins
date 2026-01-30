@@ -82,6 +82,7 @@
     <ClInclude Include="CombatCreatureSettings.h" />
     <ClInclude Include="CombatCreatureSettingsDlg.h" />
     <ClInclude Include="CreatureAttackRandom.h" />
+    <ClInclude Include="CreatureMagicRandom.h" />
     <ClInclude Include="CreatureMoraleRandom.h" />
     <ClInclude Include="CreatureSettingsManager.h" />
     <ClInclude Include="enums.h" />
@@ -92,6 +93,7 @@
     <ClCompile Include="CombatCreatureSettings.cpp" />
     <ClCompile Include="CombatCreatureSettingsDlg.cpp" />
     <ClCompile Include="CreatureAttackRandom.cpp" />
+    <ClCompile Include="CreatureMagicRandom.cpp" />
     <ClCompile Include="CreatureMoraleRandom.cpp" />
     <ClCompile Include="CreatureSettingsManager.cpp" />
     <ClCompile Include="dllmain.cpp" />

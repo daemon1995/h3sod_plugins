@@ -21,24 +21,33 @@ enum eDamageState : unsigned int
 
 enum eSettingsId
 {
-	NONE = -1,
+    NONE = -1,
     POSITIVE_MORALE_UNIT,
     POSITIVE_MORALE_ALL,
     NEGATIVE_MORALE_UNIT,
-	NEGATIVE_MORALE_ALL,
+    NEGATIVE_MORALE_ALL,
     FEAR,
     SPELL_CASTING,
     RESURRECTION,
     MAGIC_RESISTANCE,
+    //MASS_MAGIC_RESISTANCE,
     POSITIVE_LUCK_UNIT,
-	POSITIVE_LUCK_ALL,
+    POSITIVE_LUCK_ALL,
     NEGATIVE_LUCK_UNIT,
-	NEGATIVE_LUCK_ALL,
+    NEGATIVE_LUCK_ALL,
     DOUBLE_DAMAGE,
     WALL_ATTACK,
     AFTER_ATTACK_ABILITY,
-    DAMAGE_VARIATION,
+    DAMAGE_VARIATION_FIRST,
+    DAMAGE_VARIATION_SECOND,
     AMOUNT_OF_SETTINGS
+};
+enum eAbilitySwitchError
+{
+    ABILITY_SWITCH_NO_ERROR = 0,
+    ABILITY_SWITCH_NO_ATTEMPTS_LEFT,
+    ABILITY_SWITCH_NO_EFFECT,
+    ABILITY_SWITCH_NO_ABILITY,
 };
 struct AbilityChanger
 {
@@ -46,7 +55,10 @@ struct AbilityChanger
         eTriggerState triggerState;
         eDamageState damageState = DAMAGE_DEFAULT;
     };
-    INT duration = 0;
+    union {
+        INT duration = 0;
+        eSpell spellToCast;
+    };
     eTriggerState GetNextTriggerState() const
     {
         if (triggerState >= eTriggerState::NEVER)

@@ -20,6 +20,9 @@ class CreatureAttackRandom : public IGamePatch
 
     const H3CombatCreature *currentCombatCreature = nullptr;
     const CombatCreatureSettings *currentSettings = nullptr;
+    const AbilityChanger *currentDamageAbility = nullptr;
+    bool stacksAttackedAtLeastOnce[2][21]{{}};
+    BOOL useSecondAttack = false;
     INT targetWallId = -1;
 
     std::unordered_map<eCreature, EventHandler> m_abilitiesMap;
@@ -34,8 +37,14 @@ class CreatureAttackRandom : public IGamePatch
     void CreateAbilityEvent(const eCreature creature, const DWORD patchAddress, const void *functionPtr,
                             const eTriggerState trigger = DEFAULT, const eVKey hotkey = eVKey(0));
 
+    void ResetAfterAttackState();
+
+  private:
+    static void __stdcall BattleStack_AttackMelee_Prepare(HiHook *hook, const H3CombatCreature *attacker,
+                                                          const int direction);
     static char __stdcall BattleStack_AttackMelee(HiHook *hook, const H3CombatCreature *attacker,
                                                   const H3CombatCreature *defender, const int direction);
+    static void __stdcall BattleStack_Shoot_Prepare(HiHook *hook, const H3CombatCreature *attacker);
     static void __stdcall BattleStack_Shoot(HiHook *hook, const H3CombatCreature *attacker,
                                             const H3CombatCreature *target);
 

@@ -6,29 +6,62 @@ CreatureAttackRandom::CreatureAttackRandom() : IGamePatch(globalPatcher->CreateI
     CreatePatches();
 }
 
+void __stdcall CreatureAttackRandom::BattleStack_Shoot_Prepare(HiHook *hook, const H3CombatCreature *attacker)
+{
+    THISCALL_1(void, hook->GetDefaultFunc(), attacker);
+    instance->ResetAfterAttackState();
+}
+void __stdcall CreatureAttackRandom::BattleStack_AttackMelee_Prepare(HiHook *hook, const H3CombatCreature *attacker,
+                                                                     const int direction)
+{
+
+    THISCALL_2(void, hook->GetDefaultFunc(), attacker, direction);
+    instance->ResetAfterAttackState();
+}
+
 void __stdcall CreatureAttackRandom::BattleStack_Shoot(HiHook *hook, const H3CombatCreature *attacker,
                                                        const H3CombatCreature *defender)
 {
+
+    auto &stackAttacked = instance->stacksAttackedAtLeastOnce[attacker->side][attacker->sideIndex];
+    if (stackAttacked)
+        instance->useSecondAttack = true;
+    else
+        stackAttacked = true;
     instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
+
     THISCALL_2(void, hook->GetDefaultFunc(), attacker, defender);
+
     instance->currentSettings = nullptr;
+    instance->useSecondAttack = false;
 }
 char __stdcall CreatureAttackRandom::BattleStack_AttackMelee(HiHook *hook, const H3CombatCreature *attacker,
                                                              const H3CombatCreature *defender, const int direction)
 {
     // store creature type before random function
+    auto &stackAttacked = instance->stacksAttackedAtLeastOnce[attacker->side][attacker->sideIndex];
+    if (stackAttacked)
+        instance->useSecondAttack = true;
+    else
+        stackAttacked = true;
     instance->currentSettings = &CreatureSettingsManager::GetCreatureSettings(attacker);
+
     const char result = THISCALL_3(char, hook->GetDefaultFunc(), attacker, defender, direction);
+
     instance->currentSettings = nullptr;
+    instance->useSecondAttack = false;
+
     return result;
 }
 
 int __stdcall CreatureAttackRandom::BattleStack_DamageRandom(HiHook *h, const int min, const int max)
 {
 
-    if (instance->currentSettings)
+    if (const auto &settings = instance->currentSettings)
     {
-        switch (instance->currentSettings->abilities.damage.triggerState)
+        eDamageState damageState = instance->useSecondAttack ? settings->abilities.secondAttackDamage.damageState
+                                                             : settings->abilities.firstAttackDamage.damageState;
+        switch (damageState)
         {
         case eDamageState::DAMAGE_DEFAULT:
             break;
@@ -54,7 +87,7 @@ int __stdcall CreatureAttackRandom::BattleStack_DamageRandom(HiHook *h, const in
 int __stdcall CreatureAttackRandom::BattleStack_AfterAttackAbilityRandom(HiHook *hook, const int min, const int max)
 {
     return CombatCreatureSettings::BattleStack_Random(hook, min, max,
-                                                      instance->currentSettings->At(eSettingsId::AFTER_ATTACK_ABILITY));
+                                                      instance->currentSettings->At(AFTER_ATTACK_ABILITY));
 }
 
 int __stdcall CreatureAttackRandom::BattleStack_DoubleDamageRandom(HiHook *hook, const int min, const int max)
@@ -119,13 +152,29 @@ void CreatureAttackRandom::CreateAbilityEvent(const eCreature creature, const DW
     }
 }
 
+void CreatureAttackRandom::ResetAfterAttackState()
+{
+    currentSettings = nullptr;
+    currentCombatCreature = nullptr;
+    currentDamageAbility = nullptr;
+    useSecondAttack = false;
+    targetWallId = -1;
+    libc::memset(stacksAttackedAtLeastOnce, 0, sizeof(stacksAttackedAtLeastOnce));
+}
+
 void CreatureAttackRandom::CreatePatches()
 {
     if (!this->m_isInited)
     {
         this->m_isInited = true;
 
+        // used as a pre-hook to count shots and melee attacks
+        // both are "CALL_" type
+        WriteHiHook(0x04458D8, THISCALL_, BattleStack_Shoot_Prepare);
+        WriteHiHook(0x04419D0, THISCALL_, BattleStack_AttackMelee_Prepare);
+
         // used to init currentCreature and currentSettings before and after attack functions
+        // both are "SPLICE_" type
         WriteHiHook(0x43F620, THISCALL_, BattleStack_Shoot);
         WriteHiHook(0x441330, THISCALL_, BattleStack_AttackMelee);
 

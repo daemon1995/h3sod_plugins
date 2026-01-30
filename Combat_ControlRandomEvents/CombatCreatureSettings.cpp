@@ -42,7 +42,7 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
 
     if (!creature)
         return FALSE;
-    if (creature->numberAlive < 1)
+    if (creature->numberAlive < 1 && creature->type == eCreature::ARROW_TOWER)
         return FALSE;
 
     const auto &info = creature->info;
@@ -65,15 +65,16 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
                 }
             }
         }
-
+        return true;
     case NEGATIVE_MORALE_UNIT:
         return !info.noMorale; // || creature->info.undead;
     case FEAR:
         return !(info.noMorale || creatureType == eCreature::AZURE_DRAGON); // || creature->info.undead;
 
     case SPELL_CASTING:
-        return creatureType == eCreature::MASTER_GENIE || creatureType == eCreature::ENCHANTER ||
-               creatureType == eCreature::FAERIE_DRAGON;
+        return creatureType == eCreature::ENCHANTER ||
+               (creatureType == eCreature::MASTER_GENIE || creatureType == eCreature::FAERIE_DRAGON) &&
+                   creature->info.spellCharges > 0;
 
     case RESURRECTION:
         return creatureType == eCreature::PHOENIX;
@@ -101,8 +102,10 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
         return info.destroyWalls;
     case AFTER_ATTACK_ABILITY:
         return CreatureAttackRandom::BattleStack_HasAfterAttackAbility(creature);
-    case DAMAGE_VARIATION:
+    case DAMAGE_VARIATION_FIRST:
         return info.damageLow < info.damageHigh;
+    case DAMAGE_VARIATION_SECOND:
+        return info.doubleAttack && info.damageLow < info.damageHigh && (!info.shooter || info.numberShots > 1);
     default:
         break;
     }
@@ -114,13 +117,23 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
 int CombatCreatureSettings::BattleStack_Random(HiHook *hook, const int min, const int max,
                                                const AbilityChanger &abilityChanger)
 {
-    switch (abilityChanger.triggerState)
+    // if ability isn't duration based, decrease points per use
+    if (abilityChanger.duration == 0)
     {
-    case eTriggerState::ALWAYS:
-        return min; // always trigger ability
-    case eTriggerState::NEVER:
-        return max; // never trigger ability
-    default:
-        return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
     }
+
+    // if (const int userPints = CreatureSettingsManager::GetUserPoints())
+    {
+        switch (abilityChanger.triggerState)
+        {
+        case eTriggerState::ALWAYS:
+            return min; // always trigger ability
+        case eTriggerState::NEVER:
+            return max; // never trigger ability
+        default:
+            break;
+        }
+    }
+
+    return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 }
