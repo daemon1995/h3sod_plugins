@@ -4,8 +4,8 @@ CreatureSettingsManager *CreatureSettingsManager::instance = nullptr;
 struct PluginText
 {
     static PluginText &PluginText::GetInstance();
-    static LPCSTR GetHintText(const eSettingsId settingId, const H3CombatCreature *creature,
-                              const eAbilitySwitchError errorType);
+    LPCSTR GetHintText(const H3CombatCreature *creature, const eSettingsId settingId, const AbilityChanger &changer,
+                       const eAbilitySwitchError errorType) const noexcept;
 };
 struct SpellSelectionDlg
 {
@@ -26,7 +26,7 @@ void CreatureSettingsManager::ResetCombatSettings() noexcept
 
     combatIsStarted = false;
     tacticsPhaseRound = false;
-    userControlPoints = 0;
+    userControlPoints = userMaxControlPoints;
     userControlPointsSpent = 0;
     userActionsUsed = 0;
 
@@ -105,7 +105,17 @@ void CreatureSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *
                 }
                 else if (creatureSettings->IsAffected(eSettingsId::SPELL_CASTING))
                 {
-                    SpellSelectionDlg::ShowSettingsDlg(const_cast<H3CombatCreature *>(combatCreature), msg);
+                    const eSpell selectedSpell =
+                        SpellSelectionDlg::ShowSettingsDlg(const_cast<H3CombatCreature *>(combatCreature), msg);
+
+                    if (selectedSpell != eSpell::NONE)
+                    {
+                        (*creatureSettings)[eSettingsId::SPELL_CASTING] = {eTriggerState::ALWAYS, selectedSpell};
+                        if (combatCreature->type == eCreature::FAERIE_DRAGON)
+                        {
+                            const_cast<H3CombatCreature *>(combatCreature)->faerieDragonSpell = selectedSpell;
+                        }
+                    }
                 }
                 //                    errorType = ABILITY_SWITCH_NO_ABILITY;
             }
@@ -223,9 +233,28 @@ void CreatureSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *
             creatureSettings = nullptr;
             return;
         }
+
+        AbilityChanger &changer = creatureSettings->asArray[settingId];
+        if (errorType == ABILITY_SWITCH_NO_ERROR)
+        {
+            switch (settingId)
+            {
+            case DAMAGE_VARIATION_FIRST:
+            case DAMAGE_VARIATION_SECOND:
+                changer.damageState = changer.GetNextDamageState();
+                break;
+
+            case SPELL_CASTING:
+                // handled in dialog
+                break;
+            default:
+                changer.triggerState = changer.GetNextTriggerState();
+                break;
+            }
+        }
         creatureSettings = nullptr;
 
-        std::string resultHint = pluginText->GetHintText(settingId, combatCreature, errorType);
+        std::string resultHint = pluginText->GetHintText(combatCreature, settingId, changer, errorType);
         if (!resultHint.empty())
         {
             ReportActionUsage(mgr, resultHint.c_str(), eLogType::LOG_TYPE_SCREEN);
@@ -278,14 +307,24 @@ void TestInitiate(CreatureSettingsManager *instance)
     tempAttacker.abilities.doubleDamage.triggerState = eTriggerState::ALWAYS;
     tempAttacker.abilities.positiveLuck.triggerState = eTriggerState::ALWAYS;
     tempAttacker.abilities.wallAttackAim.triggerState = eTriggerState::ALWAYS;
-
+    const AbilityChanger tempAttackerAbility = {
+        eTriggerState::ALWAYS,
+    };
     CombatCreatureSettings tempDefender;
     tempDefender.abilities.negativeMorale.triggerState = eTriggerState::ALWAYS;
 
     for (size_t i = 0; i <= h3::limits::COMBAT_CREATURES; i++)
     {
-        instance->SetCreatureSettings(0, i, tempAttacker);
-        instance->SetCreatureSettings(1, i, tempDefender);
+        const auto &attackerStack = &P_CombatManager->stacks[0][i];
+        instance->SetCreatureAbilityState(attackerStack, eSettingsId::POSITIVE_MORALE_UNIT, tempAttackerAbility);
+        instance->SetCreatureAbilityState(attackerStack, eSettingsId::AFTER_ATTACK_ABILITY, tempAttackerAbility);
+
+        const auto &defenderStack = &P_CombatManager->stacks[1][i];
+        //  instance->SetCreatureAbilityState(defenderStack, eSettingsId::NEGATIVE_MORALE_UNIT, tempAttackerAbility);
+        instance->SetCreatureAbilityState(defenderStack, eSettingsId::RESURRECTION, tempAttackerAbility);
+
+        //  instance->SetCreatureSettings(0, i, tempAttacker);
+        //  instance->SetCreatureSettings(1, i, tempDefender);
     }
 }
 
@@ -416,6 +455,18 @@ void CreatureSettingsManager::SetCreatureSettings(const int side, const int inde
                                                   const CombatCreatureSettings &settings) noexcept
 {
     instance->combatCreatureSettings[side][index] = settings;
+}
+
+void CreatureSettingsManager::SetCreatureAbilityState(const H3CombatCreature *creature, const eSettingsId settingId,
+                                                      const AbilityChanger &state) noexcept
+{
+    instance->combatCreatureSettings[creature->side][creature->sideIndex].asArray[settingId] = state;
+}
+
+void CreatureSettingsManager::SetCreatureAbilityState(const int side, const int index, const eSettingsId settingId,
+                                                      const AbilityChanger &state) noexcept
+{
+    instance->combatCreatureSettings[side][index].asArray[settingId] = state;
 }
 
 int CreatureSettingsManager::GetUserPoints() noexcept

@@ -17,8 +17,8 @@ PluginText &PluginText::GetInstance()
     }
     return *instance;
 }
-LPCSTR PluginText::GetHintText(const eSettingsId settingId, const H3CombatCreature *creature,
-                               const eAbilitySwitchError errorType)
+LPCSTR PluginText::GetHintText(const H3CombatCreature *creature, const eSettingsId settingId,
+                               const AbilityChanger &changer, const eAbilitySwitchError errorType) const noexcept
 {
 
     if (settingId <= eSettingsId::NONE || settingId >= eSettingsId::AMOUNT_OF_SETTINGS)
@@ -41,7 +41,8 @@ LPCSTR PluginText::GetHintText(const eSettingsId settingId, const H3CombatCreatu
         libc::sprintf(h3_TextBuffer, hintBarText.combatAbilityError.noAbility.c_str(), creatureName);
         break;
     default:
-        const auto& triggerStateName = instance->triggerStates[eTriggerState::ALWAYS].name.c_str();
+
+        const auto &triggerStateName = GetStateText(settingId, changer);
 
         switch (settingId)
         {
@@ -59,6 +60,24 @@ LPCSTR PluginText::GetHintText(const eSettingsId settingId, const H3CombatCreatu
         break;
     }
     return h3_TextBuffer;
+}
+LPCSTR PluginText::GetStateText(const eSettingsId settingId, const AbilityChanger &changer) const noexcept
+{
+    switch (settingId)
+    {
+    case eSettingsId::DAMAGE_VARIATION_FIRST:
+    case eSettingsId::DAMAGE_VARIATION_SECOND:
+        return instance->damageStates[changer.damageState].name.c_str();
+    case eSettingsId::SPELL_CASTING:
+        if (changer.spellToCast != eSpell::NONE)
+        {
+            return P_Spell[changer.spellToCast].name;
+        } // NO BREAK
+    default:
+        return instance->triggerStates[changer.triggerState].name.c_str();
+    }
+
+    return LPCSTR();
 }
 //
 // LPCSTR PluginText::GetDlgText(const eSettingsId settingId, const H3CombatCreature *creature)

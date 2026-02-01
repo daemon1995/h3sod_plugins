@@ -18,7 +18,8 @@ class CreatureSettingsManager : public IGamePatch
 
     BOOL combatIsStarted = false;
     BOOL tacticsPhaseRound = false;
-    INT userControlPoints = 1230;
+    INT userMaxControlPoints = 1230;
+    INT userControlPoints = 0;
     INT userControlPointsSpent = 0;
     INT userActionsUsed = 0;
     H3String actionsUsedLog;
@@ -53,6 +54,10 @@ class CreatureSettingsManager : public IGamePatch
     static const CombatCreatureSettings &GetCreatureSettings(const int side, const int index) noexcept;
     static void SetCreatureSettings(const H3CombatCreature *creature, const CombatCreatureSettings &settings) noexcept;
     static void SetCreatureSettings(const int side, const int index, const CombatCreatureSettings &settings) noexcept;
+    static void SetCreatureAbilityState(const H3CombatCreature *creature, const eSettingsId settingId,
+                                        const AbilityChanger &state) noexcept;
+    static void SetCreatureAbilityState(const int side, const int index, const eSettingsId settingId,
+                                        const AbilityChanger &state) noexcept;
     static int GetUserPoints() noexcept;
     static void SetUserPoints(const int newSize) noexcept;
     static BOOL DecreaseUserPoints(const int toDecrease) noexcept;

@@ -60,7 +60,7 @@ struct PluginText : IPluginText
   public:
     static PluginText &GetInstance();
     static LPCSTR GetDlgText(const eSettingsId settingId, const H3CombatCreature *creature);
-    static LPCSTR GetHintText(const eSettingsId settingId, const H3CombatCreature *creature,
-                              const eAbilitySwitchError errorType);
-    static LPCSTR GetStateText(const eSettingsId settingId, const AbilityChanger &changer);
+    LPCSTR GetHintText(const H3CombatCreature *creature, const eSettingsId settingId, const AbilityChanger &changer,
+                       const eAbilitySwitchError errorType) const noexcept;
+    LPCSTR GetStateText(const eSettingsId settingId, const AbilityChanger &changer) const noexcept;
 };

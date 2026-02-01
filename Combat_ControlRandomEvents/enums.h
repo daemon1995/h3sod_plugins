@@ -56,8 +56,8 @@ struct AbilityChanger
         eDamageState damageState = DAMAGE_DEFAULT;
     };
     union {
-        INT duration = 0;
-        eSpell spellToCast;
+        INT duration;
+        eSpell spellToCast = eSpell::NONE;
     };
     eTriggerState GetNextTriggerState() const
     {

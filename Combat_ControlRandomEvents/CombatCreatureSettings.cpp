@@ -77,7 +77,7 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
                    creature->info.spellCharges > 0;
 
     case RESURRECTION:
-        return creatureType == eCreature::PHOENIX;
+        return creatureType == eCreature::PHOENIX && creature->info.spellCharges > 0;
     case MAGIC_RESISTANCE:
         return false;
     case POSITIVE_LUCK_UNIT:
@@ -99,7 +99,7 @@ BOOL CombatCreatureSettings::IsAffected(const eSettingsId id, const H3CombatCrea
     case DOUBLE_DAMAGE:
         return creatureType == eCreature::DREAD_KNIGHT;
     case WALL_ATTACK:
-        return info.destroyWalls;
+        return info.destroyWalls && P_CombatManager->siegeKind2 > 0;
     case AFTER_ATTACK_ABILITY:
         return CreatureAttackRandom::BattleStack_HasAfterAttackAbility(creature);
     case DAMAGE_VARIATION_FIRST:

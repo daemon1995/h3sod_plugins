@@ -43,13 +43,25 @@ class CreatureMagicRandom : IGamePatch
 
 class SpellSelectionDlg : H3Dlg
 {
-    virtual BOOL DialogProc(H3Msg &msg) override;
-    std::vector<eSpell> availableSpells;
+  protected:
+    static constexpr LPCSTR ITEM_DEF_NAME = "spells.def";
 
+    static constexpr size_t ITEMS_PER_ROW = 4;
+    static constexpr size_t ITEMS_MARGIN = 16;
+    static constexpr size_t ITEMS_PADDING = 4;
+
+  protected:
+    virtual BOOL DialogProc(H3Msg &msg) override;
+    virtual BOOL OnDoubleClick(INT itemID, H3Msg &msg) override;
+
+  protected:
+    H3DlgFrame *selectionFrame = nullptr;
+
+    const std::vector<eSpell> &availableSpells;
     eSpell selectedSpell = eSpell::NONE;
 
-    SpellSelectionDlg(const H3CombatCreature *creature, const BOOL isPopup, const int width = 400,
-                      const int height = 300);
+    SpellSelectionDlg(const H3CombatCreature *creature, const std::vector<eSpell> &availableSpells, const BOOL isPopup,
+                      const int width = 400, const int height = 300);
 
   public:
     static eSpell ShowSettingsDlg(H3CombatCreature *creature, const H3Msg *msg);
