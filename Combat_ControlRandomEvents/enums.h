@@ -2,45 +2,52 @@
 
 enum eTriggerState : unsigned int
 {
-    DEFAULT = 0,
-    ALWAYS = 1,
-    NEVER = 2,
+    TRIGGER_STATE_DEFAULT = 0,
+    TRIGGER_STATE_ALWAYS = 1,
+    TRIGGER_STATE_NEVER = 2,
     AMOUNT_OF_TRIGGER_STATES
 };
 enum eDamageState : unsigned int
 {
-    DAMAGE_DEFAULT = 0,
-    DAMAGE_RANDOM = DAMAGE_DEFAULT,
-    DAMAGE_MINIMUM = 1,
-    DAMAGE_MAXIMUM = 2,
-    DAMAGE_MIN_25 = 3,
-    DAMAGE_MIN_50 = 4,
-    DAMAGE_MIN_75 = 5,
+    DAMAGE_STATE_DEFAULT = 0,
+    DAMAGE_STATE_RANDOM = DAMAGE_STATE_DEFAULT,
+    DAMAGE_STATE_MINIMUM = 1,
+    DAMAGE_STATE_MAXIMUM = 2,
+    DAMAGE_STATE_MIN_25 = 3,
+    DAMAGE_STATE_MIN_50 = 4,
+    DAMAGE_STATE_MIN_75 = 5,
     AMOUNT_OF_DAMAGE_STATES
 };
 
-enum eSettingsId
+enum eSideSettingsId
 {
-    NONE = -1,
-    POSITIVE_MORALE_UNIT,
-    POSITIVE_MORALE_ALL,
-    NEGATIVE_MORALE_UNIT,
-    NEGATIVE_MORALE_ALL,
-    FEAR,
-    SPELL_CASTING,
-    RESURRECTION,
-    MAGIC_RESISTANCE,
-    //MASS_MAGIC_RESISTANCE,
-    POSITIVE_LUCK_UNIT,
-    POSITIVE_LUCK_ALL,
-    NEGATIVE_LUCK_UNIT,
-    NEGATIVE_LUCK_ALL,
-    DOUBLE_DAMAGE,
-    WALL_ATTACK,
-    AFTER_ATTACK_ABILITY,
-    DAMAGE_VARIATION_FIRST,
-    DAMAGE_VARIATION_SECOND,
-    AMOUNT_OF_SETTINGS
+    SIDE_SETTING_NONE = -1,
+    SIDE_SETTING_UNAFFECTED_BY_MORALE,
+    SIDE_SETTING_UNAFFECTED_BY_LUCK,
+    SIDE_SETTING_UNAFFECTED_BY_FEAR, // target setting supresses side setting
+    SIDE_SETTING_UNAFFECTED_BY_RESISTANCE,
+    AMOUNT_OF_SIDE_SETTINGS
+};
+
+enum eStackSettingsId
+{
+    STACK_SETTING_NONE = -1,
+    STACK_SETTING_POSITIVE_MORALE,
+    STACK_SETTING_NEGATIVE_MORALE,
+    STACK_SETTING_FEAR,
+    STACK_SETTING_SPELL_CASTING,
+    STACK_SETTING_RESURRECTION,
+    STACK_SETTING_MAGIC_RESISTANCE,
+    STACK_SETTING_MAGIC_MIRROR,
+    // MASS_MAGIC_RESISTANCE,
+    STACK_SETTING_POSITIVE_LUCK,
+    STACK_SETTING_NEGATIVE_LUCK,
+    STACK_SETTING_DOUBLE_DAMAGE,
+    STACK_SETTING_WALL_ATTACK,
+    STACK_SETTING_AFTER_ATTACK_ABILITY,
+    STACK_SETTING_DAMAGE_VARIATION_FIRST,
+    STACK_SETTING_DAMAGE_VARIATION_SECOND,
+    AMOUNT_OF_STACK_SETTINGS
 };
 enum eAbilitySwitchError
 {
@@ -53,7 +60,7 @@ struct AbilityChanger
 {
     union {
         eTriggerState triggerState;
-        eDamageState damageState = DAMAGE_DEFAULT;
+        eDamageState damageState = DAMAGE_STATE_DEFAULT;
     };
     union {
         INT duration;
@@ -61,15 +68,15 @@ struct AbilityChanger
     };
     eTriggerState GetNextTriggerState() const
     {
-        if (triggerState >= eTriggerState::NEVER)
-            return eTriggerState::DEFAULT;
+        if (triggerState >= eTriggerState::TRIGGER_STATE_NEVER)
+            return eTriggerState::TRIGGER_STATE_DEFAULT;
         else
             return static_cast<eTriggerState>(triggerState + 1);
     }
     eDamageState GetNextDamageState() const
     {
-        if (damageState >= eDamageState::DAMAGE_MIN_75)
-            return eDamageState::DAMAGE_DEFAULT;
+        if (damageState >= eDamageState::DAMAGE_STATE_MIN_75)
+            return eDamageState::DAMAGE_STATE_DEFAULT;
         else
             return static_cast<eDamageState>(damageState + 1);
     }

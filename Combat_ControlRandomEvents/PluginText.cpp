@@ -2,7 +2,6 @@
 
 #include "framework.h"
 
-#include "CreatureSettingsManager.h"
 #include "PluginText.h"
 
 using json = nlohmann::json;
@@ -17,22 +16,22 @@ PluginText &PluginText::GetInstance()
     }
     return *instance;
 }
-LPCSTR PluginText::GetHintText(const H3CombatCreature *creature, const eSettingsId settingId,
+LPCSTR PluginText::GetHintText(const H3CombatCreature *creature, const eStackSettingsId settingId,
                                const AbilityChanger &changer, const eAbilitySwitchError errorType) const noexcept
 {
 
-    if (settingId <= eSettingsId::NONE || settingId >= eSettingsId::AMOUNT_OF_SETTINGS)
+    if (settingId <= eStackSettingsId::STACK_SETTING_NONE || settingId >= eStackSettingsId::AMOUNT_OF_STACK_SETTINGS)
         return h3_NullString;
 
     const auto &hintBarText = instance->hintBarText;
-    LPCSTR abilityName = instance->abilityText[settingId].name.c_str();
+    LPCSTR abilityName = instance->stackSettingsText[settingId].name.c_str();
     LPCSTR creatureName = creature->info.GetCreatureName(creature->numberAlive);
 
     switch (errorType)
     {
     case ABILITY_SWITCH_NO_ATTEMPTS_LEFT:
         libc::sprintf(h3_TextBuffer, hintBarText.combatAbilityError.noAttemptsLeft.c_str(), abilityName,
-                      CreatureSettingsManager::GetUserPoints());
+                      CombatSettingsManager::GetUserPoints());
         break;
     case ABILITY_SWITCH_NO_EFFECT:
         libc::sprintf(h3_TextBuffer, hintBarText.combatAbilityError.noEffect.c_str(), abilityName, creatureName);
@@ -44,31 +43,34 @@ LPCSTR PluginText::GetHintText(const H3CombatCreature *creature, const eSettings
 
         const auto &triggerStateName = GetStateText(settingId, changer);
 
-        switch (settingId)
-        {
-        case eSettingsId::POSITIVE_MORALE_ALL:
-        case eSettingsId::NEGATIVE_MORALE_ALL:
-        case eSettingsId::POSITIVE_LUCK_ALL:
-        case eSettingsId::NEGATIVE_LUCK_ALL:
-            libc::sprintf(h3_TextBuffer, hintBarText.combatAbilitySwitched.c_str(), abilityName, triggerStateName);
-            break;
-        default:
-            libc::sprintf(h3_TextBuffer, hintBarText.unitAbilitySwitched.c_str(), creatureName, abilityName,
-                          triggerStateName);
-            break;
-        }
+        libc::sprintf(h3_TextBuffer, hintBarText.unitAbilitySwitched.c_str(), creatureName, abilityName,
+                      triggerStateName);
+
+        // switch (settingId)
+        //{
+        // case eStackSettingsId::POSITIVE_MORALE_ALL:
+        // case eStackSettingsId::NEGATIVE_MORALE_ALL:
+        // case eStackSettingsId::POSITIVE_LUCK_ALL:
+        // case eStackSettingsId::NEGATIVE_LUCK_ALL:
+        //     libc::sprintf(h3_TextBuffer, hintBarText.combatAbilitySwitched.c_str(), abilityName, triggerStateName);
+        //     break;
+        // default:
+        //     libc::sprintf(h3_TextBuffer, hintBarText.unitAbilitySwitched.c_str(), creatureName, abilityName,
+        //                   triggerStateName);
+        //     break;
+        // }
         break;
     }
     return h3_TextBuffer;
 }
-LPCSTR PluginText::GetStateText(const eSettingsId settingId, const AbilityChanger &changer) const noexcept
+LPCSTR PluginText::GetStateText(const eStackSettingsId settingId, const AbilityChanger &changer) const noexcept
 {
     switch (settingId)
     {
-    case eSettingsId::DAMAGE_VARIATION_FIRST:
-    case eSettingsId::DAMAGE_VARIATION_SECOND:
+    case eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_FIRST:
+    case eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_SECOND:
         return instance->damageStates[changer.damageState].name.c_str();
-    case eSettingsId::SPELL_CASTING:
+    case eStackSettingsId::STACK_SETTING_SPELL_CASTING:
         if (changer.spellToCast != eSpell::NONE)
         {
             return P_Spell[changer.spellToCast].name;
@@ -80,22 +82,23 @@ LPCSTR PluginText::GetStateText(const eSettingsId settingId, const AbilityChange
     return LPCSTR();
 }
 //
-// LPCSTR PluginText::GetDlgText(const eSettingsId settingId, const H3CombatCreature *creature)
+// LPCSTR PluginText::GetDlgText(const eStackSettingsId settingId, const H3CombatCreature *creature)
 //{
 //    return LPCSTR();
 //}
 //
-// LPCSTR PluginText::GetHintText(const eSettingsId settingId, const H3CombatCreature *creature)
+// LPCSTR PluginText::GetHintText(const eStackSettingsId settingId, const H3CombatCreature *creature)
 //{
 //    return LPCSTR();
 //}
 //
-// LPCSTR PluginText::GetStateText(const eSettingsId settingId, const AbilityChanger &changer)
+// LPCSTR PluginText::GetStateText(const eStackSettingsId settingId, const AbilityChanger &changer)
 //{
-//    if (settingId < eSettingsId::POSITIVE_MORALE_UNIT || settingId >= eSettingsId::AMOUNT_OF_SETTINGS)
+//    if (settingId < eStackSettingsId::STACK_SETTING_POSITIVE_MORALE || settingId >=
+//    eStackSettingsId::AMOUNT_OF_STACK_SETTINGS)
 //        return h3_NullString;
 //
-//    if (settingId == eSettingsId::DAMAGE_VARIATION_FIRST)
+//    if (settingId == eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_FIRST)
 //    {
 //        return instance->stateText.damageStates[changer.damageState];
 //    }
@@ -162,29 +165,19 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
     json j;
     f >> j;
 
-    static constexpr LPCSTR abilityKeys[] = {
-        "positive_morale_unit",
-        "positive_morale_all",
-        "negative_morale_unit",
-        "negative_morale_all",
-        "fear",
-        "spell_casting",
-        "resurrection",
-        "magic_resistance",
-        "positive_luck_unit",
-        "positive_luck_all",
-        "negative_luck_unit",
-        "negative_luck_all",
-        "double_damage",
-        "wall_attack",
-        "after_attack_ability",
-        "damage_variation_first",
-        "damage_variation_second",
+    static constexpr LPCSTR stackAbilityKeys[] = {
+        "positive_morale",        "negative_morale",         "fear",         "spell_casting",
+        "resurrection",           "magic_resistance",        "magic_mirror", "positive_luck",
+        "negative_luck",          "double_damage",           "wall_attack",  "after_attack_ability",
+        "damage_variation_first", "damage_variation_second",
     };
+    static_assert(std::size(stackAbilityKeys) == AMOUNT_OF_STACK_SETTINGS, "Ability keys size mismatch");
+    ReadJsonStringFieldToArray(j, "stack_abilities", stackAbilityKeys, stackSettingsText, std::size(stackAbilityKeys));
 
-    static_assert(std::size(abilityKeys) == eSettingsId::AMOUNT_OF_SETTINGS, "Ability keys size mismatch");
-
-    ReadJsonStringFieldToArray(j, "abilities", abilityKeys, abilityText, std::size(abilityKeys));
+    static constexpr LPCSTR sideAbilityKeys[] = {"unaffected_by_morale", "unaffected_by_luck", "unaffected_by_fear",
+                                                 "unaffected_by_magic_resistance"};
+    static_assert(std::size(sideAbilityKeys) == AMOUNT_OF_SIDE_SETTINGS, "Side ability keys size mismatch");
+    ReadJsonStringFieldToArray(j, "side_abilities", sideAbilityKeys, sideSettingsText, std::size(sideAbilityKeys));
 
     static constexpr LPCSTR damageKeys[] = {"default", "minimum", "maximum", "minimum_25", "minimum_50", "minimum_75"};
     ReadJsonStringFieldToArray(j, "damage_states", damageKeys, damageStates, std::size(damageKeys));

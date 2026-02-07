@@ -4,12 +4,8 @@
 struct EventHandler
 {
     BOOL enabled;
-    uint32_t ability;
-    uint32_t chance;
-    eTriggerState trigger = DEFAULT;
     void *functionPointer = nullptr;
     Patch *functionPatch = nullptr;
-    eVKey hotkey = eVKey(0);
 };
 
 class CreatureAttackRandom : public IGamePatch
@@ -19,7 +15,7 @@ class CreatureAttackRandom : public IGamePatch
     static CreatureAttackRandom *instance;
 
     const H3CombatCreature *currentCombatCreature = nullptr;
-    const CombatCreatureSettings *currentSettings = nullptr;
+    const CombatStackSettings *currentSettings = nullptr;
     const AbilityChanger *currentDamageAbility = nullptr;
     bool stacksAttackedAtLeastOnce[2][21]{{}};
     BOOL useSecondAttack = false;
@@ -34,9 +30,7 @@ class CreatureAttackRandom : public IGamePatch
     virtual void CreatePatches() override;
 
   private:
-    void CreateAbilityEvent(const eCreature creature, const DWORD patchAddress, const void *functionPtr,
-                            const eTriggerState trigger = DEFAULT, const eVKey hotkey = eVKey(0));
-
+    void CreateAbilityEvent(const eCreature creature, const DWORD patchAddress, void *functionPtr);
     void ResetAfterAttackState();
 
   private:

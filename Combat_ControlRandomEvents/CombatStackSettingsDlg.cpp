@@ -1,6 +1,6 @@
 #include "framework.h"
 
-CombatCreatureSettingsDlg::CombatCreatureSettingsDlg(const int x, const int y, const H3CombatCreature *creature,
+CombatStackSettingsDlg::CombatStackSettingsDlg(const int x, const int y, const H3CombatCreature *creature,
                                                      const BOOL isRightClick)
     : H3Dlg(400, 400, -1, -1, !isRightClick, true)
 {
@@ -11,33 +11,33 @@ CombatCreatureSettingsDlg::CombatCreatureSettingsDlg(const int x, const int y, c
     }
 }
 
-CombatCreatureSettingsDlg::~CombatCreatureSettingsDlg()
+CombatStackSettingsDlg::~CombatStackSettingsDlg()
 {
 }
 
-INT CombatCreatureSettingsDlg::DialogProc(H3Msg &msg)
+INT CombatStackSettingsDlg::DialogProc(H3Msg &msg)
 {
 
     return 0;
 }
 
-void CombatCreatureSettingsDlg::CreateSettingsItems()
+void CombatStackSettingsDlg::CreateSettingsItems()
 {
     // this->CreateOnOffCheckbox
 }
 
-BOOL CombatCreatureSettingsDlg::ShowSettingsDlg(H3CombatCreature *creature, const BOOL isRightClick)
+BOOL CombatStackSettingsDlg::ShowSettingsDlg(H3CombatCreature *creature, const BOOL isRightClick)
 {
 
-    CombatCreatureSettingsDlg dlg(-1, -1, creature, isRightClick);
+    CombatStackSettingsDlg dlg(-1, -1, creature, isRightClick);
 
     isRightClick ? dlg.RMB_Show() : dlg.Start();
 
     return dlg.settingsChanged;
 }
 
-CombatCreatureSettingsDlg::DlgRadioGroup::DlgRadioGroup(const RECT &pos, const int firstItemId,
-                                                        const eSettingsId settingId, const eTriggerState defaultState)
+CombatStackSettingsDlg::DlgRadioGroup::DlgRadioGroup(const RECT &pos, const int firstItemId,
+                                                        const eStackSettingsId settingId, const eTriggerState defaultState)
 {
     position = pos;
     constexpr int margin = 5;
@@ -52,14 +52,14 @@ CombatCreatureSettingsDlg::DlgRadioGroup::DlgRadioGroup(const RECT &pos, const i
     }
 }
 
-void __stdcall CombatCreatureSettingsDlg::BattleMgr_ShowMonStatDlg(HiHook *hook, H3CombatManager *mgr,
+void __stdcall CombatStackSettingsDlg::BattleMgr_ShowMonStatDlg(HiHook *hook, H3CombatManager *mgr,
                                                                    H3CombatCreature *creature, BOOL isRightClick)
 {
 
     const bool shiftPressed = STDCALL_1(SHORT, PtrAt(0x63A294), VK_SHIFT) & 0x800;
     if (shiftPressed)
     {
-        CombatCreatureSettingsDlg::ShowSettingsDlg(creature, isRightClick);
+        CombatStackSettingsDlg::ShowSettingsDlg(creature, isRightClick);
     }
     else
     {

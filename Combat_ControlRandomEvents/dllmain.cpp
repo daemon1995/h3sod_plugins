@@ -4,7 +4,10 @@
 
 #include "PluginText.h"
 
+#include "CreatureAttackRandom.h"
 #include "CreatureMagicRandom.h"
+#include "CreatureTurnControlRandom.h"
+
 using namespace h3;
 
 Patcher *globalPatcher = nullptr;
@@ -17,11 +20,11 @@ LPCSTR instanceName = "EraPlugin." PROJECT_NAME ".daemon_n";
 _LHF_(HooksInit)
 {
     CreatureAttackRandom::GetInstance();
-    CreatureSettingsManager::GetInstance();
-    CreatureMoraleRandom::GetInstance();
+    CombatSettingsManager::GetInstance();
+    CreatureTurnControlRandom::GetInstance();
     CreatureMagicRandom::GetInstance();
 
-    _PI->WriteHiHook(0x468440, THISCALL_, CombatCreatureSettingsDlg::BattleMgr_ShowMonStatDlg);
+    _PI->WriteHiHook(0x468440, THISCALL_, CombatStackSettingsDlg::BattleMgr_ShowMonStatDlg);
     return EXEC_DEFAULT;
 }
 

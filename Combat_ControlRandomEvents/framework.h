@@ -9,8 +9,6 @@
 #include "enums.h"
 
 
-#include "CombatCreatureSettings.h"
-#include "CombatCreatureSettingsDlg.h"
-#include "CreatureAttackRandom.h"
-#include "CreatureMoraleRandom.h"
-#include "CreatureSettingsManager.h"
+#include "CombatSettings.h"
+#include "CombatStackSettingsDlg.h"
+#include "CombatSettingsManager.h"

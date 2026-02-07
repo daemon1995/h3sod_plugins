@@ -1,14 +1,14 @@
 #pragma once
-class CreatureMoraleRandom : public IGamePatch
+class CreatureTurnControlRandom : public IGamePatch
 {
 
-    static CreatureMoraleRandom *instance;
-    const CombatCreatureSettings *currentSettings = nullptr;
-    static constexpr LPCSTR instanceName = "SoDPlugin.CreatureMoraleRandom.daemon_n";
+    static CreatureTurnControlRandom *instance;
+    const CombatStackSettings *currentSettings = nullptr;
+    static constexpr LPCSTR instanceName = "SoDPlugin.CreatureTurnControlRandom.daemon_n";
 
   private:
-    CreatureMoraleRandom();
-    virtual ~CreatureMoraleRandom() {};
+    CreatureTurnControlRandom();
+    virtual ~CreatureTurnControlRandom() {};
 
   protected:
     virtual void CreatePatches() override;
@@ -27,5 +27,5 @@ class CreatureMoraleRandom : public IGamePatch
     static int __stdcall BattleStack_FearRandom(HiHook *hook, const int min, const int max);
 
   public:
-    static CreatureMoraleRandom &GetInstance();
+    static CreatureTurnControlRandom &GetInstance();
 };

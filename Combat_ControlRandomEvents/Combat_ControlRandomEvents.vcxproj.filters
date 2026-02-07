@@ -21,19 +21,19 @@
     <ClInclude Include="CreatureAttackRandom.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CreatureMoraleRandom.h">
+    <ClInclude Include="CreatureTurnControlRandom.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CombatCreatureSettingsDlg.h">
+    <ClInclude Include="CombatStackSettingsDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CombatCreatureSettings.h">
+    <ClInclude Include="CombatSettings.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="enums.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CreatureSettingsManager.h">
+    <ClInclude Include="CombatSettingsManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="PluginText.h">
@@ -50,16 +50,16 @@
     <ClCompile Include="CreatureAttackRandom.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CreatureMoraleRandom.cpp">
+    <ClCompile Include="CreatureTurnControlRandom.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CombatCreatureSettingsDlg.cpp">
+    <ClCompile Include="CombatStackSettingsDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CombatCreatureSettings.cpp">
+    <ClCompile Include="CombatSettings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="CreatureSettingsManager.cpp">
+    <ClCompile Include="CombatSettingsManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PluginText.cpp">

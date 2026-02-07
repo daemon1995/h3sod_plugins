@@ -14461,7 +14461,7 @@ namespace h3
 		/** @brief [0x514] possibly tied to hypnotize as well?*/
 		H3Vector<H3CombatCreature*> _f_514;
 		/** @brief [0x524]*/
-		H3Vector<H3CombatCreature*> hypnotized;
+		H3Vector<H3CombatCreature*> unicornsAround;
 		h3unk8 _f_534[20];
 	public:
 		_H3API_ LPCSTR GetCreatureName() const;
@@ -14490,6 +14490,7 @@ namespace h3
 		_H3API_ H3Hero* GetOwner() const;
 		_H3API_ INT32 GetProtectiveSpellEffect(INT32 damage, INT32 spellID) const;
 		_H3API_ INT32 MagicMirrorEffect() const;
+		_H3API_ BOOL HasUnicornsAura() const;
         /**
          * @brief Apply physical damage to target, this damage would not be reduce by creature basic stats.
 		 *
@@ -32229,6 +32230,10 @@ namespace h3
     {
         return THISCALL_1(INT32, 0x448510, this);
     }
+	_H3API_ BOOL H3CombatCreature::HasUnicornsAura() const
+	{
+		return unicornsAround.Size();
+	}
     _H3API_ INT32 H3CombatCreature::ApplyPhysicalDamage(INT32 resourceAmount)
     {
         return THISCALL_2(INT32, 0x443DB0, this, resourceAmount);

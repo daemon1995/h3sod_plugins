@@ -54,7 +54,6 @@ static BOOL CreateAvailableSpellsList(const H3CombatCreature *creature, std::vec
     case eCreature::MASTER_GENIE:
         for (size_t i = eSpell::QUICK_SAND; i < eSpell::STONE; i++)
         {
-
             if (P_Spell[i].level > maxSpellLevel)
                 continue;
 
@@ -112,12 +111,13 @@ static BOOL CreateAvailableSpellsList(const H3CombatCreature *creature, std::vec
 
 static eSpell GetUserSelectedSpell(const H3CombatCreature *creature)
 {
-    if (!CreatureSettingsManager::GetUserPoints())
+    if (!CombatSettingsManager::GetUserPoints())
         return eSpell::NONE;
 
-    const auto &settings = CreatureSettingsManager::GetCreatureSettings(creature).At(eSettingsId::SPELL_CASTING);
-    if (settings.triggerState == ALWAYS)
-        return settings.spellToCast;
+    const auto &spellData =
+        CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_SPELL_CASTING];
+    if (spellData.triggerState == TRIGGER_STATE_ALWAYS)
+        return spellData.spellToCast;
 
     return eSpell::NONE;
 }
@@ -136,7 +136,7 @@ static void __stdcall BattleStack_CastGenieSpell(HiHook *h, H3CombatCreature *cr
         if (targetStack->CanReceiveSpell(setSpellByUser))
         {
             P_CombatManager->CastSpell(setSpellByUser, pos, 1, -1, eSecSkillLevel::ADVANCED, 6);
-            CreatureSettingsManager::DecreaseUserPoints(1);
+            CombatSettingsManager::DecreaseUserPoints(1);
             return;
         }
     }
@@ -160,12 +160,12 @@ static char __stdcall BattleStack_EnchanterCastsMassSpell(HiHook *h, H3CombatCre
         data[0].chanceToCast = INT32_MAX;
 
         // call pseudo original function to check if spell can be cast
-        char ret = THISCALL_1(char, 0x0447D00, creature);
+        char ret = creature->UseEnchanters();
         data[0] = storedData;
         // if spell can be cast, decrease user points and return success
         if (ret)
         {
-            CreatureSettingsManager::DecreaseUserPoints(1);
+            CombatSettingsManager::DecreaseUserPoints(1);
             return true;
         }
     }
@@ -196,7 +196,7 @@ static _LHF_(BattleStack_CastFaerieDragonSpell)
         if (setSpellByUser != eSpell::NONE)
         {
             creature->faerieDragonSpell = setSpellByUser;
-            CreatureSettingsManager::DecreaseUserPoints(1);
+            CombatSettingsManager::DecreaseUserPoints(1);
             return EXEC_DEFAULT;
         }
     }
@@ -207,17 +207,18 @@ static _LHF_(BattleStack_PhoenixResurrection)
 {
     if (auto *creature = reinterpret_cast<H3CombatCreature *>(c->esi))
     {
-        const auto &settings = CreatureSettingsManager::GetCreatureSettings(creature).At(eSettingsId::RESURRECTION);
+        const auto &resistance =
+            CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_MAGIC_RESISTANCE];
 
-        switch (settings.triggerState)
+        switch (resistance.triggerState)
         {
-        case eTriggerState::ALWAYS:             // 1
-        case eTriggerState::NEVER:              // 2
-            c->edx = settings.triggerState - 1; // always (0)/ never (1) succeed
-            CreatureSettingsManager::DecreaseUserPoints(1);
+        case eTriggerState::TRIGGER_STATE_ALWAYS: // 1
+        case eTriggerState::TRIGGER_STATE_NEVER:  // 2
+            c->edx = resistance.triggerState - 1; // always (0)/ never (1) succeed
+            CombatSettingsManager::DecreaseUserPoints(1);
             c->return_address = 0x04690D7;
             return NO_EXEC_DEFAULT;
-        case eTriggerState::DEFAULT:
+        case eTriggerState::TRIGGER_STATE_DEFAULT:
         default:
             break;
         }
@@ -228,22 +229,23 @@ static _LHF_(BattleStack_PhoenixResurrection)
 static _LHF_(BattleManager_BattleStack_GetResistanceRandom)
 {
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->edi);
-    if (CreatureSettingsManager::GetUserPoints())
+    if (CombatSettingsManager::GetUserPoints())
     {
-        const auto &settings = CreatureSettingsManager::GetCreatureSettings(creature);
+        const auto &resistance =
+            CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_MAGIC_RESISTANCE];
 
-        switch (settings.abilities.resistance.triggerState)
+        switch (resistance.triggerState)
         {
-        case eTriggerState::ALWAYS:
+        case eTriggerState::TRIGGER_STATE_ALWAYS:
             c->ecx = 100; // -> leads to Rand(100, 100) > [resistance_value]
             break;
-        case eTriggerState::NEVER:
+        case eTriggerState::TRIGGER_STATE_NEVER:
             c->edx = 1; // -> leads to Rand(1, 1) > [resistance_value]
             break;
         default:
             return EXEC_DEFAULT;
         }
-        CreatureSettingsManager::DecreaseUserPoints(1);
+        CombatSettingsManager::DecreaseUserPoints(1);
     }
 
     return EXEC_DEFAULT;
@@ -251,22 +253,23 @@ static _LHF_(BattleManager_BattleStack_GetResistanceRandom)
 static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
 {
     const auto &creature = *reinterpret_cast<H3CombatCreature **>(c->ebp + 0x14);
-    if (CreatureSettingsManager::GetUserPoints())
+    if (CombatSettingsManager::GetUserPoints())
     {
-        const auto &settings = CreatureSettingsManager::GetCreatureSettings(creature);
+        const auto &resistance =
+            CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_MAGIC_RESISTANCE];
 
-        switch (settings.abilities.resistance.triggerState)
+        switch (resistance.triggerState)
         {
-        case eTriggerState::ALWAYS:
+        case eTriggerState::TRIGGER_STATE_ALWAYS:
             c->edx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
             break;
-        case eTriggerState::NEVER:
+        case eTriggerState::TRIGGER_STATE_NEVER:
             c->ecx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
             break;
         default:
             return EXEC_DEFAULT;
         }
-        CreatureSettingsManager::DecreaseUserPoints(1);
+        CombatSettingsManager::DecreaseUserPoints(1);
     }
 
     return EXEC_DEFAULT;
@@ -274,22 +277,23 @@ static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
 static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
 {
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->esi);
-    if (CreatureSettingsManager::GetUserPoints())
+    if (CombatSettingsManager::GetUserPoints())
     {
-        const auto &settings = CreatureSettingsManager::GetCreatureSettings(creature);
+        const auto &resistance =
+            CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_MAGIC_RESISTANCE];
 
-        switch (settings.abilities.resistance.triggerState)
+        switch (resistance.triggerState)
         {
-        case eTriggerState::ALWAYS:
+        case eTriggerState::TRIGGER_STATE_ALWAYS:
             c->edx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
             break;
-        case eTriggerState::NEVER:
+        case eTriggerState::TRIGGER_STATE_NEVER:
             c->ecx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
             break;
         default:
             return EXEC_DEFAULT;
         }
-        CreatureSettingsManager::DecreaseUserPoints(1);
+        CombatSettingsManager::DecreaseUserPoints(1);
     }
 
     return EXEC_DEFAULT;
@@ -297,26 +301,58 @@ static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
 static _LHF_(BattleManager_BattleStack_GetAreaSpellResistanceRandom)
 {
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->edi);
-    if (CreatureSettingsManager::GetUserPoints())
+    if (CombatSettingsManager::GetUserPoints())
     {
-        const auto &settings = CreatureSettingsManager::GetCreatureSettings(creature);
+        const auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
 
-        switch (settings.abilities.resistance.triggerState)
+        switch (settings.settings.resistance.triggerState)
         {
-        case eTriggerState::ALWAYS:
+        case eTriggerState::TRIGGER_STATE_ALWAYS:
             c->ecx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
             break;
-        case eTriggerState::NEVER:
+        case eTriggerState::TRIGGER_STATE_NEVER:
             c->edx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
             break;
         default:
             return EXEC_DEFAULT;
         }
-        CreatureSettingsManager::DecreaseUserPoints(1);
+        CombatSettingsManager::DecreaseUserPoints(1);
     }
 
     return EXEC_DEFAULT;
 }
+
+_LHF_(BattleManager_BattleStack_MagicMirrorRandom)
+{
+    // if craeture doesn't have magic mirror
+    if (!c->edi || c->edi >= 100)
+    {
+        return EXEC_DEFAULT;
+    }
+
+    const auto &creature = reinterpret_cast<H3CombatCreature *>(c->ecx);
+    if (CombatSettingsManager::GetUserPoints())
+    {
+        const auto &magicMirror = CombatStackSettings::GetCombatStackSettings(creature)[STACK_SETTING_MAGIC_MIRROR];
+        switch (magicMirror.triggerState)
+        {
+        case eTriggerState::TRIGGER_STATE_ALWAYS:
+            c->eax = 1; // -> leads to edi >= 1 [magic_mirror_chance]
+            break;
+        case eTriggerState::TRIGGER_STATE_NEVER:
+            c->eax = 100; // -> leads to edi >= 100 [magic_mirror_chance]
+            break;
+        default:
+            return EXEC_DEFAULT;
+        }
+        CombatSettingsManager::DecreaseUserPoints(1);
+
+        c->return_address = 0x059F1F0;
+        return NO_EXEC_DEFAULT;
+    }
+    return EXEC_DEFAULT;
+}
+
 void CreatureMagicRandom::CreatePatches()
 {
 
@@ -333,21 +369,26 @@ void CreatureMagicRandom::CreatePatches()
 
     // single target spell casting
     WriteLoHook(0x05A0616, BattleManager_BattleStack_GetResistanceRandom);
+
+    // mass spells have own logic
     // death ripple spell casting
     WriteLoHook(0x05A1012, BattleManager_BattleStack_GetResistanceRandom);
-    // desroy undead spell casting
+    // destroy undead spell casting
     WriteLoHook(0x05A120F, BattleManager_BattleStack_GetResistanceRandom);
 
     // berserk spell casting
     WriteLoHook(0x05A2100, BattleManager_BattleStack_GetBerserkResistanceRandom);
 
-    // status spells casting
+    // status spells mass casting
     WriteLoHook(0x05A6A5C, BattleManager_BattleStack_GetStatusSpellResistanceRandom);
     // Armageddon spell casting
     WriteLoHook(0x05A4F5A, BattleManager_BattleStack_GetStatusSpellResistanceRandom);
 
     // area spell casting
     WriteLoHook(0x05A4D80, BattleManager_BattleStack_GetAreaSpellResistanceRandom);
+
+    // Magic Mirror
+    WriteLoHook(0x059F1DF, BattleManager_BattleStack_MagicMirrorRandom);
 }
 
 CreatureMagicRandom &CreatureMagicRandom::GetInstance()
@@ -398,8 +439,8 @@ SpellSelectionDlg::SpellSelectionDlg(const H3CombatCreature *creature, const std
     H3DlgDef *spellItem = nullptr;
     H3DlgItem *selectedSpellItem = nullptr;
 
-    auto &creatureSettings = CreatureSettingsManager::GetCreatureSettings(creature);
-    const eSpell preselectedSpell = creatureSettings.At(eSettingsId::SPELL_CASTING).spellToCast;
+    auto &creatureSettings = CombatStackSettings::GetCombatStackSettings(creature);
+    const eSpell preselectedSpell = creatureSettings.At(eStackSettingsId::STACK_SETTING_SPELL_CASTING).spellToCast;
 
     for (size_t row = 0; row < rows; row++)
     {

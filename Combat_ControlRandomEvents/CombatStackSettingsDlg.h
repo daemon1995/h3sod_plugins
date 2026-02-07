@@ -1,13 +1,12 @@
 #pragma once
 
-
-class CombatCreatureSettingsDlg : public H3Dlg
+class CombatStackSettingsDlg : public H3Dlg
 
 {
 
   protected:
-    CombatCreatureSettings *viewedCretureSettings = nullptr;
-    CombatCreatureSettings localCreatureSettings{};
+    CombatStackSettings *viewedCretureSettings = nullptr;
+    CombatStackSettings localCreatureSettings{};
 
     BOOL settingsChanged = FALSE;
 
@@ -26,17 +25,17 @@ class CombatCreatureSettingsDlg : public H3Dlg
 
         } radioButtons[3];
 
-        eSettingsId settingId;
+        eStackSettingsId settingId;
 
-        DlgRadioGroup(const RECT &pos, const int firstItemId, const eSettingsId settingId,
-                      const eTriggerState defaultState = DEFAULT);
+        DlgRadioGroup(const RECT &pos, const int firstItemId, const eStackSettingsId settingId,
+                      const eTriggerState defaultState = TRIGGER_STATE_DEFAULT);
     };
 
     std::vector<DlgRadioGroup> radioGroups;
 
   protected:
-    CombatCreatureSettingsDlg(const int x, const int y, const H3CombatCreature *creature, const BOOL isRightClick);
-    virtual ~CombatCreatureSettingsDlg();
+    CombatStackSettingsDlg(const int x, const int y, const H3CombatCreature *creature, const BOOL isRightClick);
+    virtual ~CombatStackSettingsDlg();
 
   protected:
     virtual BOOL DialogProc(H3Msg &msg) override;

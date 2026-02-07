@@ -79,23 +79,23 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CombatCreatureSettings.h" />
-    <ClInclude Include="CombatCreatureSettingsDlg.h" />
+    <ClInclude Include="CombatSettings.h" />
+    <ClInclude Include="CombatStackSettingsDlg.h" />
     <ClInclude Include="CreatureAttackRandom.h" />
     <ClInclude Include="CreatureMagicRandom.h" />
-    <ClInclude Include="CreatureMoraleRandom.h" />
-    <ClInclude Include="CreatureSettingsManager.h" />
+    <ClInclude Include="CreatureTurnControlRandom.h" />
+    <ClInclude Include="CombatSettingsManager.h" />
     <ClInclude Include="enums.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="PluginText.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CombatCreatureSettings.cpp" />
-    <ClCompile Include="CombatCreatureSettingsDlg.cpp" />
+    <ClCompile Include="CombatSettings.cpp" />
+    <ClCompile Include="CombatStackSettingsDlg.cpp" />
     <ClCompile Include="CreatureAttackRandom.cpp" />
     <ClCompile Include="CreatureMagicRandom.cpp" />
-    <ClCompile Include="CreatureMoraleRandom.cpp" />
-    <ClCompile Include="CreatureSettingsManager.cpp" />
+    <ClCompile Include="CreatureTurnControlRandom.cpp" />
+    <ClCompile Include="CombatSettingsManager.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="PluginText.cpp" />
   </ItemGroup>

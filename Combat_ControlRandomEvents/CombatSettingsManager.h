@@ -1,7 +1,7 @@
 #pragma once
 
 struct PluginText;
-class CreatureSettingsManager : public IGamePatch
+class CombatSettingsManager : public IGamePatch
 {
 
     enum eLogType
@@ -14,7 +14,7 @@ class CreatureSettingsManager : public IGamePatch
     eLogType logType = LOG_TYPE_SCREEN;
     Patch *newRoundPatch = nullptr;
     Patch *endCombatPatch = nullptr;
-    CombatCreatureSettings combatCreatureSettings[2][h3::limits::COMBAT_CREATURES + 1];
+    //  CombatStackSettings combatStackSettings[2][h3::limits::COMBAT_CREATURES + 1];
 
     BOOL combatIsStarted = false;
     BOOL tacticsPhaseRound = false;
@@ -24,21 +24,20 @@ class CreatureSettingsManager : public IGamePatch
     INT userActionsUsed = 0;
     H3String actionsUsedLog;
     PluginText *pluginText = nullptr;
-    static CreatureSettingsManager *instance;
+    static CombatSettingsManager *instance;
 
   private:
-    CreatureSettingsManager();
-    virtual ~CreatureSettingsManager() {};
+    CombatSettingsManager();
+    virtual ~CombatSettingsManager() {};
 
   protected:
     virtual void CreatePatches() override;
 
   private:
     void ResetCombatSettings() noexcept;
-    void ResetAllcreatureSettings() noexcept;
     void SwitchBattleStackAbilityByHotKey(H3CombatManager *mgr, H3Msg *msg);
     void ReportActionUsage(H3CombatManager *mgr, LPCSTR msg, const eLogType logType);
-    void SaveActionUsageToLog(H3CombatManager *mgr, const CombatCreatureSettings *creatureSettings);
+    void SaveActionUsageToLog(H3CombatManager *mgr, const CombatStackSettings *creatureSettings);
 
   private:
     static void __stdcall BattleMgr_StartBattle(HiHook *h, H3CombatManager *_this);
@@ -48,18 +47,9 @@ class CreatureSettingsManager : public IGamePatch
     static void __stdcall BattleMgr_SetWinner(HiHook *h, H3CombatManager *_this, const INT side);
 
   public:
-    static CreatureSettingsManager &GetInstance();
+    static CombatSettingsManager &GetInstance();
 
-    static const CombatCreatureSettings &GetCreatureSettings(const H3CombatCreature *creature) noexcept;
-    static const CombatCreatureSettings &GetCreatureSettings(const int side, const int index) noexcept;
-    static void SetCreatureSettings(const H3CombatCreature *creature, const CombatCreatureSettings &settings) noexcept;
-    static void SetCreatureSettings(const int side, const int index, const CombatCreatureSettings &settings) noexcept;
-    static void SetCreatureAbilityState(const H3CombatCreature *creature, const eSettingsId settingId,
-                                        const AbilityChanger &state) noexcept;
-    static void SetCreatureAbilityState(const int side, const int index, const eSettingsId settingId,
-                                        const AbilityChanger &state) noexcept;
     static int GetUserPoints() noexcept;
     static void SetUserPoints(const int newSize) noexcept;
     static BOOL DecreaseUserPoints(const int toDecrease) noexcept;
-    static void SetAbilityForAllCreatures(const AbilityChanger &ability, const BOOL enable) noexcept;
 };
