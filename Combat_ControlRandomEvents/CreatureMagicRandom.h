@@ -23,6 +23,7 @@ struct CreatureSpellData
     {
         return *reinterpret_cast<CreatureSpellData **>(FAERIE_DRAGON_ARRAY_PTR_ADDRESS);
     }
+    static BOOL CreateAvailableSpellsList(const H3CombatCreature *creature, std::vector<eSpell> &outList);
 };
 class CreatureMagicRandom : IGamePatch
 {
@@ -64,5 +65,5 @@ class SpellSelectionDlg : H3Dlg
                       const int width = 400, const int height = 300);
 
   public:
-    static eSpell ShowSettingsDlg(H3CombatCreature *creature, const H3Msg *msg);
+    static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
 };

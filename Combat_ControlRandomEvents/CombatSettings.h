@@ -8,29 +8,30 @@ struct CombatStackSettings
     const H3CombatCreature *creature = nullptr;
 
     union {
-        struct Settings
+        struct
         {
             // all morale supresses target settings
             // turn probabilities
-            AbilityChanger positiveMorale{}; // ::M
-            AbilityChanger negativeMorale{}; // ::M
-            AbilityChanger fear{};           // ::G
+            AbilityState positiveMorale; // ::M
+            AbilityState negativeMorale; // ::M
+            AbilityState fear;           // ::G
             // magic abilities
-            AbilityChanger spellCasting{}; // ::X (SHIFT +X for dialog opening)
-            AbilityChanger resurrection{}; // ::X
-            AbilityChanger resistance{};   // ::J
-            AbilityChanger magicMirror{};  // ::CTRL + J
+            AbilityState spellCasting; // ::X (SHIFT +X for dialog opening)
+            AbilityState resurrection; // ::X
+            AbilityState resistance;   // ::J
+            AbilityState magicMirror;  // ::CTRL + J
             // damage dealt
-            AbilityChanger positiveLuck{};       // ::N
-            AbilityChanger negativeLuck{};       // ::N
-            AbilityChanger doubleDamage{};       // ::SHIFT + X
-            AbilityChanger wallAttackAim{};      // ::X
-            AbilityChanger afterAttackAbility{}; // ::X
+            AbilityState positiveLuck;       // ::N
+            AbilityState negativeLuck;       // ::N
+            AbilityState doubleDamage;       // ::SHIFT + X
+            AbilityState wallAttackAim;      // ::X
+            AbilityState afterAttackAbility; // ::X
 
-            AbilityChanger firstAttackDamage{};  // ::K
-            AbilityChanger secondAttackDamage{}; // ::SHIFT + K
-        } settings;
-        AbilityChanger asArray[eStackSettingsId::AMOUNT_OF_STACK_SETTINGS]{};
+            AbilityState firstAttackDamage;  // ::K
+            AbilityState secondAttackDamage; // ::SHIFT + K
+            AbilityState inputDirectDamage;  // ::CTRL + K
+        };
+        AbilityState asArray[eStackSettingsId::AMOUNT_OF_STACK_SETTINGS]{};
     };
 
   public:
@@ -41,20 +42,22 @@ struct CombatStackSettings
     {
         *this = {};
     }
-    inline const AbilityChanger &At(const eStackSettingsId id) const
+    inline const AbilityState &At(const eStackSettingsId id) const
     {
         return asArray[id];
     }
-    inline const AbilityChanger &operator[](const eStackSettingsId id) const
+    inline const AbilityState &operator[](const eStackSettingsId id) const
     {
         return asArray[id];
     }
 
-    void DecreaseDurations();
+    void DecreaseDurations(const eStackSettingsId id);
     BOOL IsAffectedBySetting(const eStackSettingsId id) const;
+    AbilityState GetNextAbilityState(const eStackSettingsId id) const;
+    AbilityState GetNextSpellStateToCast() const noexcept;
 
   public:
-    static int BattleStack_Random(HiHook *hook, const int min, const int max, const AbilityChanger &triggerState);
+    static int  BattleStack_Random(HiHook *hook, const int min, const int max, const AbilityState &triggerState);
 
     static inline const CombatStackSettings &GetCombatStackSettings(const H3CombatCreature *creature) noexcept
     {
@@ -76,7 +79,7 @@ struct CombatStackSettings
         combatStackSettings[side][index] = settings;
     }
     static inline void SetCreatureAbilityState(const H3CombatCreature *creature, const eStackSettingsId settingId,
-                                               const AbilityChanger &state) noexcept
+                                               const AbilityState &state) noexcept
     {
         combatStackSettings[creature->side][creature->sideIndex].asArray[settingId] = state;
     }
@@ -85,7 +88,7 @@ struct CombatStackSettings
         combatStackSettings[creature->side][creature->sideIndex].creature = creature;
     }
     static inline void SetCreatureAbilityState(const int side, const int index, const eStackSettingsId settingId,
-                                               const AbilityChanger &state) noexcept
+                                               const AbilityState &state) noexcept
     {
         combatStackSettings[side][index].asArray[settingId] = state;
     }
@@ -97,14 +100,14 @@ struct CombatSideSettings
     static CombatSideSettings sideSettings[2];
     int side = -1;
     union {
-        struct Settings
+        struct
         {
-            AbilityChanger unaffectedByMorale{};     // ::SHIFT + M
-            AbilityChanger unaffectedByLuck{};       // ::SHIFT + N
-            AbilityChanger unaffectedByFear{};       // ::SHIFT + G
-            AbilityChanger unaffectedByResistance{}; // ::SHIFT + J
-        } settings;
-        AbilityChanger asArray[AMOUNT_OF_SIDE_SETTINGS]{};
+            AbilityState unaffectedByMorale;     // ::SHIFT + M
+            AbilityState unaffectedByLuck;       // ::SHIFT + N
+            AbilityState unaffectedByFear;       // ::SHIFT + G
+            AbilityState unaffectedByResistance; // ::SHIFT + J
+        };
+        AbilityState asArray[AMOUNT_OF_SIDE_SETTINGS]{};
     };
 
     CombatSideSettings() {};

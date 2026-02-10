@@ -42,7 +42,7 @@ struct PluginText : IPluginText
         std::string name;
         std::string description;
     } stackSettingsText[AMOUNT_OF_STACK_SETTINGS], sideSettingsText[AMOUNT_OF_SIDE_SETTINGS],
-        damageStates[AMOUNT_OF_DAMAGE_STATES], triggerStates[AMOUNT_OF_TRIGGER_STATES];
+        triggerStates[AMOUNT_OF_TRIGGER_STATES], damageStates[AMOUNT_OF_TRIGGER_STATES];
 
     enum eTextError : int
     {
@@ -61,6 +61,6 @@ struct PluginText : IPluginText
     static PluginText &GetInstance();
     static LPCSTR GetDlgText(const eStackSettingsId settingId, const H3CombatCreature *creature);
     LPCSTR GetHintText(const H3CombatCreature *creature, const eStackSettingsId settingId,
-                       const AbilityChanger &changer, const eAbilitySwitchError errorType) const noexcept;
-    LPCSTR GetStateText(const eStackSettingsId settingId, const AbilityChanger &changer) const noexcept;
+                       const AbilityState &changer, const eAbilitySwitchError errorType) const noexcept;
+    LPCSTR GetStateText(const eStackSettingsId settingId, const AbilityState &changer) const noexcept;
 };

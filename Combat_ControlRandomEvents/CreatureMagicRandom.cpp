@@ -23,7 +23,7 @@ static int GetCretureSpellPower(const H3CombatCreature *creature)
     }
 }
 
-static BOOL CreateAvailableSpellsList(const H3CombatCreature *creature, std::vector<eSpell> &outList)
+BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creature, std::vector<eSpell> &outList)
 {
     // check max spell level allowed due to terrain and artifacts
     BOOL maxSpellLevel = 5;
@@ -203,6 +203,46 @@ static _LHF_(BattleStack_CastFaerieDragonSpell)
 
     return EXEC_DEFAULT;
 }
+
+/*
+void __thiscall BattleMgr__CastSpell(_BattleMgr_ *bm, eSpell spell_id, signed int pos, int casterKind,
+_DWORD pos2, int
+skillLevel, int spellPower)*/
+const CombatSideSettings *currentSideSettings = nullptr;
+float maxSideResistancePower[2] = {0.f, 0.f};
+static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, const eSpell spellId, const int pos,
+                                          const int casterKind, const int pos2, const int skillLevel,
+                                          const int spellPower)
+{
+
+    if (casterKind != 1)
+    {
+    }
+    currentSideSettings = &CombatSideSettings::GetCombatSideSettings(1 - P_CombatManager->currentActiveSide);
+
+    for (size_t i = 0; i < 2; i++)
+    {
+        maxSideResistancePower[i] = CombatSideSettings::GetCombatSideSettings(i).GetSideMaxResistance();
+        libc::sprintf(h3_TextBuffer, "side %d max resistance power: %f", i, maxSideResistancePower[i]);
+        CombatSettingsManager::ReportActionUsage(h3_TextBuffer);
+    }
+
+    THISCALL_7(void, h->GetDefaultFunc(), _this, spellId, pos, casterKind, pos2, skillLevel, spellPower);
+    currentSideSettings = nullptr;
+    for (size_t i = 0; i < 2; i++)
+    {
+        maxSideResistancePower[i] = 0.f; // CombatSideSettings::GetCombatSideSettings(i).GetSideMaxResistance();
+    }
+}
+
+int resurrectIteration = 0;
+static void __stdcall BattleMgr_PhoenixResurrection(HiHook *h, H3CombatManager *mgr)
+{
+
+    resurrectIteration = 0;
+    THISCALL_1(void, h->GetDefaultFunc(), mgr);
+    resurrectIteration = 0;
+}
 static _LHF_(BattleStack_PhoenixResurrection)
 {
     if (auto *creature = reinterpret_cast<H3CombatCreature *>(c->esi))
@@ -223,6 +263,7 @@ static _LHF_(BattleStack_PhoenixResurrection)
             break;
         }
     }
+    resurrectIteration++;
     return EXEC_DEFAULT;
 }
 
@@ -305,7 +346,7 @@ static _LHF_(BattleManager_BattleStack_GetAreaSpellResistanceRandom)
     {
         const auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
 
-        switch (settings.settings.resistance.triggerState)
+        switch (settings.resistance.triggerState)
         {
         case eTriggerState::TRIGGER_STATE_ALWAYS:
             c->ecx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
@@ -356,6 +397,10 @@ _LHF_(BattleManager_BattleStack_MagicMirrorRandom)
 void CreatureMagicRandom::CreatePatches()
 {
 
+    // Cast of any spell -- used as info for resisitance breach at side;
+
+    WriteHiHook(0x05A0140, THISCALL_, BattleMgr_CastSpell);
+
     // casting creature spells
     WriteHiHook(0x0448357, THISCALL_, BattleStack_CastGenieSpell);
     WriteHiHook(0x04650F9, THISCALL_, BattleStack_EnchanterCastsMassSpell);
@@ -363,6 +408,7 @@ void CreatureMagicRandom::CreatePatches()
     WriteLoHook(0x044837B, BattleStack_CastFaerieDragonSpell);
 
     // phoenix resurrection processing
+    WriteHiHook(0x0469020, THISCALL_, BattleMgr_PhoenixResurrection);
     WriteLoHook(0x04690CA, BattleStack_PhoenixResurrection);
 
     // resistance creaturure checking
@@ -530,12 +576,12 @@ BOOL SpellSelectionDlg::OnDoubleClick(INT itemID, H3Msg &msg)
 
     return 0;
 }
-eSpell SpellSelectionDlg::ShowSettingsDlg(H3CombatCreature *creature, const H3Msg *msg)
+eSpell SpellSelectionDlg::ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg)
 {
 
     const BOOL isPopup = msg->IsRightClick();
     std::vector<eSpell> availableSpells;
-    CreateAvailableSpellsList(creature, availableSpells);
+    CreatureSpellData::CreateAvailableSpellsList(creature, availableSpells);
     if (availableSpells.empty())
     {
         return eSpell::NONE;

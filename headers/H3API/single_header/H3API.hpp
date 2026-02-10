@@ -18879,8 +18879,8 @@ namespace h3
 		INT32 fortWallsHp[18];
 		/** @brief [13FA8] */
 		INT32 fortWallsAlive[18];
-	protected:
-		h3unk8 _f_13FF0[4];
+	//protected:
+		H3Position position;
 	public:
 		/** @brief [13FF4] pcx of grids, name of the resource in the lod*/
 		H3LoadedPcx* CCellGrdPcx;
@@ -20387,6 +20387,7 @@ namespace h3
 		_H3API_ VOID         SetText(H3String text);
 		_H3API_ VOID         SetText(LPCSTR text);
 		_H3API_ LPCSTR       GetText() const;
+		_H3API_ VOID         SetCloseDialog(BOOL8 close);
 
 		_H3API_ H3LoadedDef* GetDef();
 	};
@@ -35389,6 +35390,10 @@ namespace h3
 	_H3API_ LPCSTR H3DlgDefButton::GetText() const
 	{
 		return caption.String();
+	}
+	_H3API_ VOID H3DlgDefButton::SetCloseDialog(BOOL8 close)
+	{
+		closeDialog = close;
 	}
     _H3API_ H3DlgDefButton* H3DlgDefButton::Create(INT32 x, INT32 y, INT32 width, INT32 height, INT32 id, LPCSTR defName, INT32 frame, INT32 clickFrame, BOOL closeDialog, INT32 hotkey)
     {

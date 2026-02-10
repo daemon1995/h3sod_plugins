@@ -17,7 +17,7 @@ PluginText &PluginText::GetInstance()
     return *instance;
 }
 LPCSTR PluginText::GetHintText(const H3CombatCreature *creature, const eStackSettingsId settingId,
-                               const AbilityChanger &changer, const eAbilitySwitchError errorType) const noexcept
+                               const AbilityState &changer, const eAbilitySwitchError errorType) const noexcept
 {
 
     if (settingId <= eStackSettingsId::STACK_SETTING_NONE || settingId >= eStackSettingsId::AMOUNT_OF_STACK_SETTINGS)
@@ -63,13 +63,13 @@ LPCSTR PluginText::GetHintText(const H3CombatCreature *creature, const eStackSet
     }
     return h3_TextBuffer;
 }
-LPCSTR PluginText::GetStateText(const eStackSettingsId settingId, const AbilityChanger &changer) const noexcept
+LPCSTR PluginText::GetStateText(const eStackSettingsId settingId, const AbilityState &changer) const noexcept
 {
     switch (settingId)
     {
     case eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_FIRST:
     case eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_SECOND:
-        return instance->damageStates[changer.damageState].name.c_str();
+        return instance->damageStates[changer.triggerState].name.c_str();
     case eStackSettingsId::STACK_SETTING_SPELL_CASTING:
         if (changer.spellToCast != eSpell::NONE)
         {
@@ -92,7 +92,7 @@ LPCSTR PluginText::GetStateText(const eStackSettingsId settingId, const AbilityC
 //    return LPCSTR();
 //}
 //
-// LPCSTR PluginText::GetStateText(const eStackSettingsId settingId, const AbilityChanger &changer)
+// LPCSTR PluginText::GetStateText(const eStackSettingsId settingId, const AbilityState &changer)
 //{
 //    if (settingId < eStackSettingsId::STACK_SETTING_POSITIVE_MORALE || settingId >=
 //    eStackSettingsId::AMOUNT_OF_STACK_SETTINGS)
@@ -169,21 +169,20 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
         "positive_morale",        "negative_morale",         "fear",         "spell_casting",
         "resurrection",           "magic_resistance",        "magic_mirror", "positive_luck",
         "negative_luck",          "double_damage",           "wall_attack",  "after_attack_ability",
-        "damage_variation_first", "damage_variation_second",
-    };
+        "damage_variation_first", "damage_variation_second", "damage_input"};
     static_assert(std::size(stackAbilityKeys) == AMOUNT_OF_STACK_SETTINGS, "Ability keys size mismatch");
-    ReadJsonStringFieldToArray(j, "stack_abilities", stackAbilityKeys, stackSettingsText, std::size(stackAbilityKeys));
+    ReadJsonStringFieldToArray(j, "stack_abilities", stackAbilityKeys, stackSettingsText, std::size(stackSettingsText));
 
     static constexpr LPCSTR sideAbilityKeys[] = {"unaffected_by_morale", "unaffected_by_luck", "unaffected_by_fear",
                                                  "unaffected_by_magic_resistance"};
     static_assert(std::size(sideAbilityKeys) == AMOUNT_OF_SIDE_SETTINGS, "Side ability keys size mismatch");
-    ReadJsonStringFieldToArray(j, "side_abilities", sideAbilityKeys, sideSettingsText, std::size(sideAbilityKeys));
+    ReadJsonStringFieldToArray(j, "side_abilities", sideAbilityKeys, sideSettingsText, std::size(sideSettingsText));
 
     static constexpr LPCSTR damageKeys[] = {"default", "minimum", "maximum", "minimum_25", "minimum_50", "minimum_75"};
-    ReadJsonStringFieldToArray(j, "damage_states", damageKeys, damageStates, std::size(damageKeys));
+    ReadJsonStringFieldToArray(j, "damage_states", damageKeys, damageStates, std::size(damageStates));
 
     static constexpr LPCSTR triggerKeys[] = {"default", "always", "never"};
-    ReadJsonStringFieldToArray(j, "trigger_states", triggerKeys, triggerStates, std::size(triggerKeys));
+    ReadJsonStringFieldToArray(j, "trigger_states", triggerKeys, triggerStates, std::size(triggerStates));
 
     hintBarText.LoadFromJson(j);
     return true;
