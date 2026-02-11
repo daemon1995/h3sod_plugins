@@ -81,7 +81,7 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                 resultValue = combatSideSettings->GetSideMaxResistance();
                 libc::sprintf(h3_TextBuffer, "stack ptr  = %d/%d", combatCreature, combatStackSettings->creature);
 
-                ReportActionUsage(h3_TextBuffer, eLogTargetType::LOG_TYPE_SCREEN);
+                WriteMessageToLog(h3_TextBuffer, eLogTargetType::LOG_TYPE_SCREEN);
             }
 
             return;
@@ -163,6 +163,10 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                         }
                     }
                 }
+                else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_WALL_ATTACK_EXTENDED))
+                {
+                    stackSettingId = STACK_SETTING_WALL_ATTACK_EXTENDED;
+                }
                 else
                 {
                     errorType = ABILITY_SWITCH_NO_ABILITY;
@@ -182,9 +186,9 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                 {
                     stackSettingId = STACK_SETTING_RESURRECTION;
                 }
-                else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_WALL_ATTACK))
+                else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_WALL_ATTACK_AIM))
                 {
-                    stackSettingId = STACK_SETTING_WALL_ATTACK;
+                    stackSettingId = STACK_SETTING_WALL_ATTACK_AIM;
                 }
                 else
                 {
@@ -271,12 +275,12 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
         if (!resultHint.empty())
         {
             CombatStackSettings::SetCreatureAbilityState(combatCreature, stackSettingId, changer);
-            ReportActionUsage(resultHint.c_str(), eLogTargetType::LOG_TYPE_SCREEN);
+            WriteMessageToLog(resultHint.c_str(), eLogTargetType::LOG_TYPE_SCREEN);
         }
     }
 }
 
-void CombatSettingsManager::ReportActionUsage(LPCSTR msg, const eLogTargetType logType)
+void CombatSettingsManager::WriteMessageToLog(LPCSTR msg, const eLogTargetType logType)
 {
 
     auto mgr = P_CombatManager->Get();
@@ -298,6 +302,13 @@ void CombatSettingsManager::ReportActionUsage(LPCSTR msg, const eLogTargetType l
     }
 }
 
+void CombatSettingsManager::ReportActionUsage(const CombatStackSettings* creatureSettings, const CombatSideSettings* side, const int settingId, const eLogTargetType logType)
+{
+
+
+
+}
+
 void CombatSettingsManager::SaveActionUsageToLog(H3CombatManager *mgr, const CombatStackSettings *creatureSettings)
 {
 }
@@ -313,6 +324,7 @@ CombatSettingsManager &CombatSettingsManager::GetInstance()
 
 void TestInitiate(CombatSettingsManager *instance)
 {
+    return;
     CombatStackSettings tempAttacker;
     tempAttacker.positiveMorale.triggerState = TRIGGER_STATE_ALWAYS;
     tempAttacker.afterAttackAbility.triggerState = TRIGGER_STATE_ALWAYS;
@@ -456,6 +468,8 @@ void __stdcall CombatSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatMana
         if (_this->turn + 1 - instance->tacticsPhaseRound == 2)
         {
         }
+        CombatStackSettings::HandleNewCombatRound();
+        CombatSideSettings::HandleNewCombatRound();
     }
     else if (!_this->tacticsPhase)
     {
@@ -497,7 +511,7 @@ BOOL CombatSettingsManager::DecreaseUserPoints(const int toDecrease) noexcept
         P_Game->isCheater = true;
         instance->cheaterFlagSet = true;
 
-        ReportActionUsage("CHEATER", LOG_TYPE_SCREEN);
+        WriteMessageToLog("CHEATER", LOG_TYPE_SCREEN);
     }
     return false;
 }

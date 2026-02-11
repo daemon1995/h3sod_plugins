@@ -25,6 +25,7 @@ struct CombatStackSettings
             AbilityState negativeLuck;       // ::N
             AbilityState doubleDamage;       // ::SHIFT + X
             AbilityState wallAttackAim;      // ::X
+            AbilityState wallAttackExtended; // ::SHIFT + X
             AbilityState afterAttackAbility; // ::X
 
             AbilityState firstAttackDamage;  // ::K
@@ -51,19 +52,23 @@ struct CombatStackSettings
         return asArray[id];
     }
 
-    void DecreaseDurations(const eStackSettingsId id);
     BOOL IsAffectedBySetting(const eStackSettingsId id) const;
     AbilityState GetNextAbilityState(const eStackSettingsId id) const;
     AbilityState GetNextSpellStateToCast() const noexcept;
+    AbilityState GetNextResurrectionState() const noexcept;
+    BOOL TriggerAbility(const eStackSettingsId id);
 
   public:
-    static int  BattleStack_Random(HiHook *hook, const int min, const int max, const AbilityState &triggerState);
-
-    static inline const CombatStackSettings &GetCombatStackSettings(const H3CombatCreature *creature) noexcept
+    static int BattleStack_Random(HiHook *hook, const int min, const int max, const AbilityState &triggerState);
+    static int BattleStack_ContinuousRandom(HiHook *hook, const int min, const int max,
+                                            const AbilityState &triggerState);
+    static void ResetAll();
+    static void HandleNewCombatRound();
+    static inline CombatStackSettings &GetCombatStackSettings(const H3CombatCreature *creature) noexcept
     {
         return combatStackSettings[creature->side][creature->sideIndex];
     }
-    static inline const CombatStackSettings &GetCombatStackSettings(const int side, const int index) noexcept
+    static inline CombatStackSettings &GetCombatStackSettings(const int side, const int index) noexcept
     {
         return combatStackSettings[side][index];
     }
@@ -92,11 +97,11 @@ struct CombatStackSettings
     {
         combatStackSettings[side][index].asArray[settingId] = state;
     }
-    static void ResetAll();
 };
 
 struct CombatSideSettings
 {
+    static constexpr int SIDE_ABILITY_TURNS_DURATION = 2;
     static CombatSideSettings sideSettings[2];
     int side = -1;
     union {
@@ -115,8 +120,12 @@ struct CombatSideSettings
   public:
     BOOL IsAffectedBySetting(const eSideSettingsId id) const;
     float GetSideMaxResistance() const;
+    static void ResistanceBreachingTriggered(const int side, const int maxStackResistance);
+    static void HandleNewCombatRound();
 
   public:
+    AbilityState GetNextAbilityState(const eSideSettingsId id) const;
+
     static void ResetAll();
     static const CombatSideSettings &GetCombatSideSettings(const H3CombatCreature *creature) noexcept
     {
@@ -125,5 +134,9 @@ struct CombatSideSettings
     static const CombatSideSettings &GetCombatSideSettings(const int side) noexcept
     {
         return sideSettings[side];
+    }
+    inline const AbilityState &At(const eSideSettingsId id) const
+    {
+        return asArray[id];
     }
 };

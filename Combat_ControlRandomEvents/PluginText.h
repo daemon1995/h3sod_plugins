@@ -3,7 +3,7 @@ struct PluginText : IPluginText
 {
     static constexpr LPCSTR HD_MOD_LANG_KEY = "HD.Language";
     static constexpr LPCSTR HD_MOD_DEFAULT_LANG = "en";
-
+    static char textBuffer[512];
     struct DlgText
     {
         LPCSTR title = nullptr;
@@ -41,6 +41,7 @@ struct PluginText : IPluginText
     {
         std::string name;
         std::string description;
+		std::string logText;
     } stackSettingsText[AMOUNT_OF_STACK_SETTINGS], sideSettingsText[AMOUNT_OF_SIDE_SETTINGS],
         triggerStates[AMOUNT_OF_TRIGGER_STATES], damageStates[AMOUNT_OF_TRIGGER_STATES];
 
@@ -60,7 +61,7 @@ struct PluginText : IPluginText
   public:
     static PluginText &GetInstance();
     static LPCSTR GetDlgText(const eStackSettingsId settingId, const H3CombatCreature *creature);
-    LPCSTR GetHintText(const H3CombatCreature *creature, const eStackSettingsId settingId,
-                       const AbilityState &changer, const eAbilitySwitchError errorType) const noexcept;
+    LPCSTR GetHintText(const H3CombatCreature *creature, const eStackSettingsId settingId, const AbilityState &changer,
+                       const eAbilitySwitchError errorType) const noexcept;
     LPCSTR GetStateText(const eStackSettingsId settingId, const AbilityState &changer) const noexcept;
 };

@@ -3,24 +3,39 @@
 enum eTriggerState : unsigned int
 {
     TRIGGER_STATE_DEFAULT = 0,
+    TRIGGER_STATE_DISABLED = TRIGGER_STATE_DEFAULT,
     TRIGGER_STATE_ALWAYS = 1,
+    TRIGGER_STATE_ENABLED = TRIGGER_STATE_ALWAYS,
     TRIGGER_STATE_NEVER = 2,
     AMOUNT_OF_TRIGGER_STATES
 };
-// enum eDamageState : unsigned int
+// enum eSideTriggerState
 //{
-//     DAMAGE_STATE_DEFAULT = 0,
-//     DAMAGE_STATE_RANDOM = DAMAGE_STATE_DEFAULT,
-//     DAMAGE_STATE_MINIMUM = 1,
-//     DAMAGE_STATE_MAXIMUM = 2,
-//     DAMAGE_STATE_MIN_25 = 3,
-//     DAMAGE_STATE_MIN_50 = 4,
-//     DAMAGE_STATE_MIN_75 = 5,
-//     AMOUNT_OF_DAMAGE_STATES
+//     SIDE_TRIGGER_STATE_DISABLED = 0,
+//     SIDE_TRIGGER_STATE_WAITS_FOR_ACTIVATION = 1,
+//     SIDE_TRIGGER_STATE_ENABLED = 2,
+//     AMOUNT_OF_SIDE_TRIGGER_STATES
 // };
-enum ePhoenixState
+//  enum eDamageState : unsigned int
+//{
+//      DAMAGE_STATE_DEFAULT = 0,
+//      DAMAGE_STATE_RANDOM = DAMAGE_STATE_DEFAULT,
+//      DAMAGE_STATE_MINIMUM = 1,
+//      DAMAGE_STATE_MAXIMUM = 2,
+//      DAMAGE_STATE_MIN_25 = 3,
+//      DAMAGE_STATE_MIN_50 = 4,
+//      DAMAGE_STATE_MIN_75 = 5,
+//      AMOUNT_OF_DAMAGE_STATES
+//  };
+enum ePhoenixResurrectionState
 {
-
+    RESURRECTION_STATE_DEFAULT = 0,
+    RESURRECTION_STATE_0_FROM_ANY = 1,
+    RESURRECTION_STATE_1_FROM_ANY = 2,
+    RESURRECTION_STATE_2_FROM_2 = 3,
+    RESURRECTION_STATE_3_FROM_3_OR_4 = 4,
+    RESURRECTION_STATE_4_FROM_4 = 5,
+    AMOUNT_OF_RESURRECTION_STATES
 };
 enum eSideSettingsId
 {
@@ -46,7 +61,8 @@ enum eStackSettingsId
     STACK_SETTING_POSITIVE_LUCK,
     STACK_SETTING_NEGATIVE_LUCK,
     STACK_SETTING_DOUBLE_DAMAGE,
-    STACK_SETTING_WALL_ATTACK,
+    STACK_SETTING_WALL_ATTACK_AIM,
+    STACK_SETTING_WALL_ATTACK_EXTENDED,
     STACK_SETTING_AFTER_ATTACK_ABILITY,
     STACK_SETTING_DAMAGE_VARIATION_FIRST,
     STACK_SETTING_DAMAGE_VARIATION_SECOND,
@@ -60,27 +76,17 @@ enum eAbilitySwitchError
     ABILITY_SWITCH_NO_EFFECT,
     ABILITY_SWITCH_NO_ABILITY,
 };
+
 struct AbilityState
 {
-
-    eTriggerState triggerState;
-
+    union {
+        eTriggerState triggerState;
+        ePhoenixResurrectionState resurrectionState = RESURRECTION_STATE_DEFAULT;
+    };
     union {
         INT duration;
         eSpell spellToCast = eSpell::NONE;
     };
-    // eTriggerState GetNextAbilityState() const
-    //{
-    //     if (triggerState >= eTriggerState::TRIGGER_STATE_NEVER)
-    //         return eTriggerState::TRIGGER_STATE_DEFAULT;
-    //     else
-    //         return static_cast<eTriggerState>(triggerState + 1);
-    // }
-    // eDamageState GetNextDamageState() const
-    //{
-    //     if (damageState >= eDamageState::DAMAGE_STATE_MIN_75)
-    //         return eDamageState::DAMAGE_STATE_DEFAULT;
-    //     else
-    //         return static_cast<eDamageState>(damageState + 1);
-    // }
+    int cost = 0;
+    BOOL isTriggered = false;
 };

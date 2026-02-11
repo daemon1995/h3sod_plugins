@@ -68,5 +68,7 @@ class CombatSettingsManager : public IGamePatch
     static int GetUserPoints() noexcept;
     static void SetUserPoints(const int newSize) noexcept;
     static BOOL DecreaseUserPoints(const int toDecrease) noexcept;
-    static void ReportActionUsage(LPCSTR msg, const eLogTargetType logType = LOG_TYPE_SCREEN);
+    static void WriteMessageToLog(LPCSTR msg, const eLogTargetType logType = LOG_TYPE_SCREEN);
+    static void ReportActionUsage(const CombatStackSettings *creatureSettings, const CombatSideSettings *side,
+                                  const int settingId, const eLogTargetType logType = LOG_TYPE_SCREEN);
 };

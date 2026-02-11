@@ -7,6 +7,7 @@
 using json = nlohmann::json;
 
 PluginText *PluginText::instance = nullptr;
+char PluginText::textBuffer[512]{};
 PluginText &PluginText::GetInstance()
 {
     if (!instance)
@@ -67,19 +68,29 @@ LPCSTR PluginText::GetStateText(const eStackSettingsId settingId, const AbilityS
 {
     switch (settingId)
     {
-    case eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_FIRST:
-    case eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_SECOND:
-        return instance->damageStates[changer.triggerState].name.c_str();
+    case eStackSettingsId::STACK_SETTING_RESURRECTION:
+
+        if (changer.resurrectionState != RESURRECTION_STATE_DEFAULT)
+        {
+            libc::sprintf(textBuffer, instance->stackSettingsText[settingId].logText.c_str(),
+                          changer.resurrectionState - 1, changer.cost);
+            return textBuffer;
+        }
+        break;
     case eStackSettingsId::STACK_SETTING_SPELL_CASTING:
         if (changer.spellToCast != eSpell::NONE)
         {
             return P_Spell[changer.spellToCast].name;
         } // NO BREAK
+
+    case eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_FIRST:
+    case eStackSettingsId::STACK_SETTING_DAMAGE_VARIATION_SECOND:
+        return instance->damageStates[changer.triggerState].name.c_str();
     default:
-        return instance->triggerStates[changer.triggerState].name.c_str();
+        break;
     }
 
-    return LPCSTR();
+    return instance->triggerStates[changer.triggerState].name.c_str();
 }
 //
 // LPCSTR PluginText::GetDlgText(const eStackSettingsId settingId, const H3CombatCreature *creature)
@@ -148,6 +159,10 @@ void PluginText::ReadJsonStringFieldToArray(const nlohmann::json &j, const std::
             {
                 baseTextArray[i].description = item["description"].get<std::string>();
             }
+            if (item.contains("log_text") && item["log_text"].is_string())
+            {
+                baseTextArray[i].logText = item["log_text"].get<std::string>();
+            }
         }
     }
 }
@@ -166,10 +181,12 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
     f >> j;
 
     static constexpr LPCSTR stackAbilityKeys[] = {
-        "positive_morale",        "negative_morale",         "fear",         "spell_casting",
-        "resurrection",           "magic_resistance",        "magic_mirror", "positive_luck",
-        "negative_luck",          "double_damage",           "wall_attack",  "after_attack_ability",
-        "damage_variation_first", "damage_variation_second", "damage_input"};
+        "positive_morale",      "negative_morale",        "fear",
+        "spell_casting",        "resurrection",           "magic_resistance",
+        "magic_mirror",         "positive_luck",          "negative_luck",
+        "double_damage",        "wall_attack_aim",        "wall_attack_extended",
+        "after_attack_ability", "damage_variation_first", "damage_variation_second",
+        "damage_input"};
     static_assert(std::size(stackAbilityKeys) == AMOUNT_OF_STACK_SETTINGS, "Ability keys size mismatch");
     ReadJsonStringFieldToArray(j, "stack_abilities", stackAbilityKeys, stackSettingsText, std::size(stackSettingsText));
 

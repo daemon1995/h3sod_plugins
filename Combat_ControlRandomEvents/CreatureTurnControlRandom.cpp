@@ -13,13 +13,32 @@ void __stdcall CreatureTurnControlRandom::BattleMgr_CheckGoodMorale(HiHook *h, c
 {
 
     instance->currentSettings = &CombatStackSettings::GetCombatStackSettings(side, index);
-
+	instance->currentCreatureSide = side;
     THISCALL_3(void, h->GetDefaultFunc(), _this, side, index);
     instance->currentSettings = nullptr;
 }
 
 int __stdcall CreatureTurnControlRandom::BattleStack_PositiveMoraleRandom(HiHook *hook, const int min, const int max)
 {
+
+
+
+    const auto* luckSetting = &instance->currentSettings->At(STACK_SETTING_POSITIVE_MORALE);
+    int pointsToDecrease = 1;
+    if (luckSetting->triggerState == TRIGGER_STATE_DEFAULT)
+    {
+        const int side = instance->currentCreatureSide;
+        luckSetting = &CombatSideSettings::GetCombatSideSettings(side).At(SIDE_SETTING_UNAFFECTED_BY_MORALE);
+        pointsToDecrease = 2;
+    }
+    //if (luckSetting->Activate())
+    {
+        CombatSettingsManager::DecreaseUserPoints(pointsToDecrease);
+    }
+
+    return CombatStackSettings::BattleStack_Random(hook, min, max, *luckSetting);
+
+
     return CombatStackSettings::BattleStack_Random(
         hook, min, max, instance->currentSettings->At(eStackSettingsId::STACK_SETTING_POSITIVE_MORALE));
 }

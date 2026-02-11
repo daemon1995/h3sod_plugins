@@ -1,10 +1,11 @@
 #pragma once
 class CreatureTurnControlRandom : public IGamePatch
 {
-
-    static CreatureTurnControlRandom *instance;
-    const CombatStackSettings *currentSettings = nullptr;
     static constexpr LPCSTR instanceName = "SoDPlugin.CreatureTurnControlRandom.daemon_n";
+    static CreatureTurnControlRandom *instance;
+
+    const CombatStackSettings *currentSettings = nullptr;
+    int currentCreatureSide = -1;
 
   private:
     CreatureTurnControlRandom();

@@ -40,7 +40,7 @@ class CreatureAttackRandom : public IGamePatch
 
     INT targetWallId = -1;
 
-    std::unordered_map<DWORD, void*> m_abilitiesPatchesMap;
+    std::unordered_map<DWORD, void *> m_abilitiesPatchesMap;
     std::unordered_set<int> m_creaturesWithAfterAttackAbility;
     CreatureAttackRandom();
     virtual ~CreatureAttackRandom() {};
@@ -72,12 +72,12 @@ class CreatureAttackRandom : public IGamePatch
     static _LHF_(BattleStack_DoubleDamageTrigger);
     static int __stdcall BattleStack_LuckRandom(HiHook *hook, const int min, const int max);
 
+    static void __stdcall BattleStack_CatapultShot(HiHook *h, H3CombatCreature *attacker, const int targetHex);
     static void __stdcall BattleStack_AttackWall(HiHook *h, H3CombatCreature *attacker, const int wallId, int *damages);
     static _LHF_(BattleStack_MakeBallisticShot);
 
   public:
     static BOOL BattleStack_HasAfterAttackAbility(const H3CombatCreature *creature);
-
     static CreatureAttackRandom &GetInstance();
 };
 
@@ -87,7 +87,7 @@ class DamageInputDlg : H3Dlg
     // virtual BOOL DialogProc(H3Msg &msg) override;
     //    virtual BOOL OnDoubleClick(INT itemID, H3Msg& msg) override;
     virtual void OnOK() override;
- //   virtual void OnCancel() override;
+    //   virtual void OnCancel() override;
     virtual BOOL OnKeyPress(eVKey key, eMsgFlag flag) override;
 
   protected:

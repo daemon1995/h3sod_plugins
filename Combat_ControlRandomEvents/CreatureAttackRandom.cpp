@@ -96,7 +96,8 @@ int __stdcall CreatureAttackRandom::BattleStack_AfterAttackAbilityRandom(HiHook 
 
 int __stdcall CreatureAttackRandom::BattleStack_DeathStareAbility(HiHook *hook, const int min, const int max)
 {
-    const auto &creature = instance->currentCombatCreature;
+    const auto &creature = instance->currentSettings->creature;
+
     //    -[X] - Если в количестве до 10 - включительно то НЕ убьет Смертельным взглядом никого(Если строго больше -
     //    дефолт)
 
@@ -137,26 +138,103 @@ _LHF_(CreatureAttackRandom::BattleStack_DoubleDamageTrigger)
 }
 int __stdcall CreatureAttackRandom::BattleStack_LuckRandom(HiHook *hook, const int min, const int max)
 {
-    return CombatStackSettings::BattleStack_Random(hook, min, max,
-                                                   instance->currentSettings->At(STACK_SETTING_POSITIVE_LUCK));
+
+    const auto *luckSetting = &instance->currentSettings->At(STACK_SETTING_POSITIVE_LUCK);
+    int pointsToDecrease = 1;
+    if (luckSetting->triggerState == TRIGGER_STATE_DEFAULT)
+    {
+        const int side = instance->currentSettings->creature->side;
+        luckSetting = &CombatSideSettings::GetCombatSideSettings(side).At(SIDE_SETTING_UNAFFECTED_BY_LUCK);
+        pointsToDecrease = 2;
+    }
+    //if (luckSetting->Activate())
+    {
+        CombatSettingsManager::DecreaseUserPoints(pointsToDecrease);
+    }
+
+    return CombatStackSettings::BattleStack_Random(hook, min, max, *luckSetting);
+}
+
+struct GameBallisticsInfo
+{
+    struct BallisticsHitChances
+    {
+        char chanceToHitKeep;
+        char chanceToHitTower;
+        char chanceToHitGate;
+        char chanceToHitWall;
+    } ballisticsHitChances;
+    char shots;
+    char changeToDeal0Damage;
+    char changeToDeal1Damage;
+    char changeToDeal2Damage;
+};
+
+struct BallisticsInfo
+{
+    int ballisticsSkillLevel = eSecSkillLevel::NONE;
+    int shotsAmount = 0;
+} ballisticsInfo;
+void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3CombatCreature *attacker,
+                                                              const int targetHex)
+{
+
+    const int creatureType = attacker->type;
+    int skillLevel = 0;
+    if (creatureType == eCreature::CATAPULT)
+    {
+        skillLevel = P_CombatManager->hero[0]->secSkill[eSecondary::BALLISTICS];
+    }
+    else
+    {
+        skillLevel = creatureType == eCreature::CYCLOPS_KING + 1;
+    }
+
+    ballisticsInfo.ballisticsSkillLevel = skillLevel;
+
+    GameBallisticsInfo *gameballisticsInfo = *reinterpret_cast<GameBallisticsInfo **>(0x0679C84);
+
+    // store original hit chances to restore them after shot
+    GameBallisticsInfo storedInfo = gameballisticsInfo[skillLevel];
+
+    // set 100% chance to hit any target;
+    libc::memset(&gameballisticsInfo[skillLevel].ballisticsHitChances, 100,
+                 sizeof(gameballisticsInfo[skillLevel].ballisticsHitChances));
+    gameballisticsInfo[skillLevel].changeToDeal0Damage = 0;
+    gameballisticsInfo[skillLevel].changeToDeal1Damage = 0;
+    gameballisticsInfo[skillLevel].changeToDeal2Damage = 100;
+
+    gameballisticsInfo[skillLevel].shots = 1;
+
+    // info.ballisticsHitChances.chanceToHitKeep = 100;
+
+    // store creature type before random function
+    instance->currentSettings = &CombatStackSettings::GetCombatStackSettings(attacker);
+    THISCALL_2(void, h->GetDefaultFunc(), attacker, targetHex);
+    attacker->info.morale = 1;
+    attacker->info.siegeWeapon = false;
+    //  P_CombatManager->activeStack = nullptr;
+//    P_CombatManager->action = eCombatAction::CANCEL;
+ //   P_CombatManager->actionUndergoing = false;
+
+   // THISCALL_3(void, 0x0464F10, P_CombatManager->Get(), attacker->side, attacker->sideIndex);
+    instance->currentSettings = nullptr;
+
+    // restore original hit chances
+    gameballisticsInfo[skillLevel] = storedInfo;
+
+    ballisticsInfo = {};
 }
 
 void __stdcall CreatureAttackRandom::BattleStack_AttackWall(HiHook *h, H3CombatCreature *attacker, const int wallId,
                                                             int *damages)
 {
     // store creature type before random function
-    instance->currentSettings = &CombatStackSettings::GetCombatStackSettings(attacker);
-
     if (instance->currentSettings->wallAttackAim.triggerState)
     {
         instance->targetWallId = wallId; // always hit the wall
     }
     THISCALL_3(void, h->GetDefaultFunc(), attacker, wallId, damages);
-    instance->currentSettings = nullptr;
-}
-BOOL CreatureAttackRandom::BattleStack_HasAfterAttackAbility(const H3CombatCreature *creature)
-{
-    return instance->m_creaturesWithAfterAttackAbility.count(creature->type);
 }
 _LHF_(CreatureAttackRandom::BattleStack_MakeBallisticShot)
 {
@@ -299,7 +377,6 @@ void DamageInputDlg::OnOK()
     const int currentDisplayedBaseDamage = libc::atoi(baseDamageRow.realText->GetH3String().String());
     resultBaseDamage = Clamp(basePossibleDamage.minDamage, currentDisplayedBaseDamage, basePossibleDamage.maxDamage);
 }
-
 
 BOOL DamageInputDlg::OnKeyPress(eVKey key, eMsgFlag flag)
 {
@@ -494,10 +571,17 @@ void CreatureAttackRandom::CreatePatches()
         WriteHiHook(0x0441557, FASTCALL_, BattleStack_LuckRandom); // melee attack
         WriteHiHook(0x043F675, FASTCALL_, BattleStack_LuckRandom); // ranged attack
 
-        // Cyclops: Wall Damage random
-        WriteHiHook(0x0445BE0, THISCALL_, BattleStack_AttackWall);
-        WriteLoHook(0x0445CBB, BattleStack_MakeBallisticShot);
+        // Cyclops// Catapult: Wall Damage random
+
+        WriteHiHook(0x047942D, THISCALL_, BattleStack_CatapultShot);
+        //     WriteHiHook(0x0445BE0, THISCALL_, BattleStack_AttackWall);
+        //       WriteLoHook(0x0445CBB, BattleStack_MakeBallisticShot);
     }
+}
+
+BOOL CreatureAttackRandom::BattleStack_HasAfterAttackAbility(const H3CombatCreature *creature)
+{
+    return instance->m_creaturesWithAfterAttackAbility.count(creature->type);
 }
 
 CreatureAttackRandom &CreatureAttackRandom::GetInstance()
