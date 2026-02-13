@@ -2,9 +2,9 @@
 #include "enums.h"
 struct CombatStackSettings
 {
-
+    static constexpr int CREATURE_ABILITY_TURNS_DURATION = 5;
     static CombatStackSettings combatStackSettings[2][h3::limits::COMBAT_CREATURES + 1];
-
+    
     const H3CombatCreature *creature = nullptr;
 
     union {
@@ -12,27 +12,27 @@ struct CombatStackSettings
         {
             // all morale supresses target settings
             // turn probabilities
-            AbilityState positiveMorale; // ::M
-            AbilityState negativeMorale; // ::M
-            AbilityState fear;           // ::G
+            Ability positiveMorale; // ::M
+            Ability negativeMorale; // ::M
+            Ability fear;           // ::G
             // magic abilities
-            AbilityState spellCasting; // ::X (SHIFT +X for dialog opening)
-            AbilityState resurrection; // ::X
-            AbilityState resistance;   // ::J
-            AbilityState magicMirror;  // ::CTRL + J
+            Ability spellCasting; // ::X (SHIFT +X for dialog opening)
+            Ability resurrection; // ::X
+            Ability resistance;   // ::J
+            Ability magicMirror;  // ::CTRL + J
             // damage dealt
-            AbilityState positiveLuck;       // ::N
-            AbilityState negativeLuck;       // ::N
-            AbilityState doubleDamage;       // ::SHIFT + X
-            AbilityState wallAttackAim;      // ::X
-            AbilityState wallAttackExtended; // ::SHIFT + X
-            AbilityState afterAttackAbility; // ::X
+            Ability positiveLuck;       // ::N
+            Ability negativeLuck;       // ::N
+            Ability doubleDamage;       // ::SHIFT + X
+            Ability wallAttackAim;      // ::X
+            Ability wallAttackExtended; // ::SHIFT + X
+            Ability afterAttackAbility; // ::X
 
-            AbilityState firstAttackDamage;  // ::K
-            AbilityState secondAttackDamage; // ::SHIFT + K
-            AbilityState inputDirectDamage;  // ::CTRL + K
+            Ability firstAttackDamage;  // ::K
+            Ability secondAttackDamage; // ::SHIFT + K
+            Ability inputDirectDamage;  // ::CTRL + K
         };
-        AbilityState asArray[eStackSettingsId::AMOUNT_OF_STACK_SETTINGS]{};
+        Ability asArray[eStackAbility::AMOUNT_OF_STACK_SETTINGS]{};
     };
 
   public:
@@ -43,25 +43,26 @@ struct CombatStackSettings
     {
         *this = {};
     }
-    inline const AbilityState &At(const eStackSettingsId id) const
+    inline const Ability &At(const eStackAbility id) const
     {
         return asArray[id];
     }
-    inline const AbilityState &operator[](const eStackSettingsId id) const
+    inline const Ability &operator[](const eStackAbility id) const
     {
         return asArray[id];
     }
 
-    BOOL IsAffectedBySetting(const eStackSettingsId id) const;
-    AbilityState GetNextAbilityState(const eStackSettingsId id) const;
-    AbilityState GetNextSpellStateToCast() const noexcept;
-    AbilityState GetNextResurrectionState() const noexcept;
-    BOOL TriggerAbility(const eStackSettingsId id);
+    BOOL IsAffectedBySetting(const eStackAbility id) const;
+    eAbilityStateSwitchError SwitchToNextAbilityState(const eStackAbility id, Ability &outState) const;
+    Ability GetNextSpellStateToCast() const noexcept;
+    Ability GetNextResurrectionState() const noexcept;
+    BOOL TriggerAbility(const eStackAbility id);
 
   public:
-    static int BattleStack_Random(HiHook *hook, const int min, const int max, const AbilityState &triggerState);
-    static int BattleStack_ContinuousRandom(HiHook *hook, const int min, const int max,
-                                            const AbilityState &triggerState);
+    static int BattleStack_Random(HiHook *hook, const int min, const int max, const Ability &triggerState);
+    static int BattleStack_ContinuousRandom(const H3CombatCreature *combatCreature, const eStackAbility stackSettingId,
+                                            const eSideAbility sideSettingId, HiHook *hook, const int min,
+                                            const int max);
     static void ResetAll();
     static void HandleNewCombatRound();
     static inline CombatStackSettings &GetCombatStackSettings(const H3CombatCreature *creature) noexcept
@@ -72,7 +73,10 @@ struct CombatStackSettings
     {
         return combatStackSettings[side][index];
     }
-
+    static inline void AssignCombatCreature(const H3CombatCreature *creature)
+    {
+        combatStackSettings[creature->side][creature->sideIndex].creature = creature;
+    }
     static inline void SetCombatStackSettings(const H3CombatCreature *creature,
                                               const CombatStackSettings &settings) noexcept
     {
@@ -83,17 +87,13 @@ struct CombatStackSettings
     {
         combatStackSettings[side][index] = settings;
     }
-    static inline void SetCreatureAbilityState(const H3CombatCreature *creature, const eStackSettingsId settingId,
-                                               const AbilityState &state) noexcept
+    static inline void SetCreatureAbilityState(const H3CombatCreature *creature, const eStackAbility settingId,
+                                               const Ability &state) noexcept
     {
         combatStackSettings[creature->side][creature->sideIndex].asArray[settingId] = state;
     }
-    static inline void AssignCombatCreature(const H3CombatCreature *creature)
-    {
-        combatStackSettings[creature->side][creature->sideIndex].creature = creature;
-    }
-    static inline void SetCreatureAbilityState(const int side, const int index, const eStackSettingsId settingId,
-                                               const AbilityState &state) noexcept
+    static inline void SetCreatureAbilityState(const int side, const int index, const eStackAbility settingId,
+                                               const Ability &state) noexcept
     {
         combatStackSettings[side][index].asArray[settingId] = state;
     }
@@ -103,40 +103,54 @@ struct CombatSideSettings
 {
     static constexpr int SIDE_ABILITY_TURNS_DURATION = 2;
     static CombatSideSettings sideSettings[2];
+
     int side = -1;
     union {
         struct
         {
-            AbilityState unaffectedByMorale;     // ::SHIFT + M
-            AbilityState unaffectedByLuck;       // ::SHIFT + N
-            AbilityState unaffectedByFear;       // ::SHIFT + G
-            AbilityState unaffectedByResistance; // ::SHIFT + J
+            Ability unaffectedByMorale;     // ::SHIFT + M
+            Ability unaffectedByLuck;       // ::SHIFT + N
+            Ability unaffectedByFear;       // ::SHIFT + G
+            Ability unaffectedByResistance; // ::SHIFT + J
         };
-        AbilityState asArray[AMOUNT_OF_SIDE_SETTINGS]{};
+        Ability asArray[AMOUNT_OF_SIDE_SETTINGS]{};
     };
 
     CombatSideSettings() {};
 
   public:
-    BOOL IsAffectedBySetting(const eSideSettingsId id) const;
+    BOOL IsAffectedBySetting(const eSideAbility id) const;
     float GetSideMaxResistance() const;
     static void ResistanceBreachingTriggered(const int side, const int maxStackResistance);
     static void HandleNewCombatRound();
 
   public:
-    AbilityState GetNextAbilityState(const eSideSettingsId id) const;
+    eAbilityStateSwitchError SwitchToNextAbilityState(const eSideAbility id, Ability &outState) const;
+    BOOL TriggerAbility(const eSideAbility id);
 
+  public:
     static void ResetAll();
-    static const CombatSideSettings &GetCombatSideSettings(const H3CombatCreature *creature) noexcept
+    static CombatSideSettings &GetCombatSideSettings(const H3CombatCreature *creature) noexcept
     {
         return sideSettings[creature->side];
     }
-    static const CombatSideSettings &GetCombatSideSettings(const int side) noexcept
+    static CombatSideSettings &GetCombatSideSettings(const int side) noexcept
     {
         return sideSettings[side];
     }
-    inline const AbilityState &At(const eSideSettingsId id) const
+    inline const Ability &At(const eSideAbility id) const
     {
         return asArray[id];
+    }
+
+    static inline void SetSideAbilityState(const H3CombatCreature *creature, const eSideAbility settingId,
+                                           const Ability &state) noexcept
+    {
+        sideSettings[creature->side].asArray[settingId] = state;
+    }
+
+    static inline void SetSideAbilityState(const int side, const eSideAbility settingId, const Ability &state) noexcept
+    {
+        sideSettings[side].asArray[settingId] = state;
     }
 };

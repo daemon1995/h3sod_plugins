@@ -37,7 +37,7 @@ BOOL CombatStackSettingsDlg::ShowSettingsDlg(H3CombatCreature *creature, const B
 }
 
 CombatStackSettingsDlg::DlgRadioGroup::DlgRadioGroup(const RECT &pos, const int firstItemId,
-                                                        const eStackSettingsId settingId, const eTriggerState defaultState)
+                                                        const eStackAbility settingId, const eTriggerState defaultState)
 {
     position = pos;
     constexpr int margin = 5;

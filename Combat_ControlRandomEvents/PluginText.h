@@ -4,6 +4,7 @@ struct PluginText : IPluginText
     static constexpr LPCSTR HD_MOD_LANG_KEY = "HD.Language";
     static constexpr LPCSTR HD_MOD_DEFAULT_LANG = "en";
     static char textBuffer[512];
+    static UINT codepage;
     struct DlgText
     {
         LPCSTR title = nullptr;
@@ -24,15 +25,18 @@ struct PluginText : IPluginText
     {
         std::string combatStart;
         std::string text;
+
         std::string unitAbilitySwitched;
-        std::string combatAbilitySwitched;
+        std::string sideAbilitySwitched;
 
         std::string unitAbilityTriggered;
+        std::string sideAbilityTriggered;
         struct
         {
             std::string noAttemptsLeft;
             std::string noEffect;
             std::string noAbility;
+            std::string switchBlocked;
         } combatAbilityError;
         void LoadFromJson(const nlohmann::json &j);
     } hintBarText;
@@ -41,7 +45,7 @@ struct PluginText : IPluginText
     {
         std::string name;
         std::string description;
-		std::string logText;
+        std::string logText;
     } stackSettingsText[AMOUNT_OF_STACK_SETTINGS], sideSettingsText[AMOUNT_OF_SIDE_SETTINGS],
         triggerStates[AMOUNT_OF_TRIGGER_STATES], damageStates[AMOUNT_OF_TRIGGER_STATES];
 
@@ -57,11 +61,21 @@ struct PluginText : IPluginText
     BOOL LoadTextFromJsonFile(const std::string &fileName);
     void ReadJsonStringFieldToArray(const nlohmann::json &j, const std::string &baseKey, const LPCSTR *keys,
                                     BaseText *baseTextArray, const size_t arraySize);
+    LPCSTR GetStateText(const eStackAbility settingId, const Ability &changer) const noexcept;
 
   public:
     static PluginText &GetInstance();
-    static LPCSTR GetDlgText(const eStackSettingsId settingId, const H3CombatCreature *creature);
-    LPCSTR GetHintText(const H3CombatCreature *creature, const eStackSettingsId settingId, const AbilityState &changer,
-                       const eAbilitySwitchError errorType) const noexcept;
-    LPCSTR GetStateText(const eStackSettingsId settingId, const AbilityState &changer) const noexcept;
+    static LPCSTR GetDlgText(const eStackAbility settingId, const H3CombatCreature *creature);
+    LPCSTR GetCreatureAbilitySwitchText(const H3CombatCreature *creature, const eStackAbility settingId,
+                                        const Ability &changer,
+                                        const eAbilityStateSwitchError errorType) const noexcept;
+    LPCSTR GetSideAbilitySwitchText(const int side, const eSideAbility settingId, const Ability &changer,
+                                    const eAbilityStateSwitchError errorType) const noexcept;
+
+    LPCSTR GetAbilityTriggeredText(const CombatStackSettings *creatureSettings, const CombatSideSettings *sideSettings,
+                                   const int settingId, const int pointsUsed) const noexcept;
+    LPCSTR GetCreatureAbilitySwitchErrorText(const CombatStackSettings *creatureSettings, const int settingId,
+                                             const eAbilityStateSwitchError errorType) const noexcept;
+    LPCSTR GetSideAbilitySwitchErrorText(const CombatSideSettings *sideSettings, const int settingId,
+                                         const eAbilityStateSwitchError errorType) const noexcept;
 };

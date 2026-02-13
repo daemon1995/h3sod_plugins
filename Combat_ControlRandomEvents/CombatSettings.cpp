@@ -17,7 +17,7 @@ CombatSideSettings CombatSideSettings::sideSettings[2]{};
 
 // Method implementations
 
-BOOL CombatStackSettings::IsAffectedBySetting(const eStackSettingsId id) const
+BOOL CombatStackSettings::IsAffectedBySetting(const eStackAbility id) const
 {
     if (!creature)
         return FALSE;
@@ -27,7 +27,7 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackSettingsId id) const
     const auto &info = creature->info;
     const int creatureType = creature->type;
     const auto &owner = creature->GetOwner();
-    //    const AbilityState &ability = asArray[id];
+    //    const Ability &ability = asArray[id];
     switch (id)
     {
     case STACK_SETTING_POSITIVE_MORALE:
@@ -73,14 +73,23 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackSettingsId id) const
             }
         }
         return P_CombatManager->specialTerrain != 2;
+
+    case STACK_SETTING_DOUBLE_LUCK:
+        return info.doubleAttack && IsAffectedBySetting(STACK_SETTING_POSITIVE_LUCK);
     case STACK_SETTING_DOUBLE_DAMAGE:
         return creatureType == eCreature::DREAD_KNIGHT ||
                (creatureType == eCreature::BALLISTA && owner &&
                 owner->secSkill[eSecondary::ARTILLERY]); // ballista's double damage
     case STACK_SETTING_WALL_ATTACK_AIM:
-        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 && creature->side == 0; // attker side
-    case STACK_SETTING_WALL_ATTACK_EXTENDED:
-        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 && creature->side == 0; // attker side
+        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 && creature->side == 0 && info.numberShots > 0 &&
+               (creatureType != eCreature::CATAPULT ||
+                owner && owner->secSkill[eSecondary::BALLISTICS] > eSecSkillLevel::NONE); // attker side
+    case STACK_SETTING_WALL_ATTACK_NO_DAMAGE:
+        return creatureType == eCreature::CATAPULT && info.numberShots > 0 &&
+               (!owner || owner->secSkill[eSecondary::BALLISTICS] ==
+                              eSecSkillLevel::NONE); // info.destroyWalls && P_CombatManager->siegeKind2 > 0 &&
+                                                     // creature->side == 0;
+                                                     // // attker side
     case STACK_SETTING_AFTER_ATTACK_ABILITY:
         return CreatureAttackRandom::BattleStack_HasAfterAttackAbility(creature);
     case STACK_SETTING_DAMAGE_VARIATION_FIRST:
@@ -95,30 +104,44 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackSettingsId id) const
     return false;
 }
 
-AbilityState CombatStackSettings::GetNextAbilityState(const eStackSettingsId id) const
+eAbilityStateSwitchError CombatStackSettings::SwitchToNextAbilityState(const eStackAbility id, Ability &result) const
 {
 
-    const eTriggerState currentState = asArray[id].triggerState;
+    result = asArray[id]; // { currentState, asArray[id].duration };
 
-    AbilityState result{}; // { currentState, asArray[id].duration };
+    const eTriggerState currentState = result.triggerState;
+
     switch (id)
     {
     case STACK_SETTING_POSITIVE_MORALE:
     case STACK_SETTING_NEGATIVE_MORALE:
     case STACK_SETTING_FEAR:
-        if (asArray[id].isTriggered)
+    case STACK_SETTING_POSITIVE_LUCK:
+        if (result.isTriggered)
         {
-            result = asArray[id];
-            break;
+            return ABILITY_SWITCH_SWITCH_BLOCKED; // already triggered, can't switch
         }
+        if (currentState >= TRIGGER_STATE_NEVER)
+        {
+            result.triggerState = TRIGGER_STATE_DEFAULT;
+            result.cost = 0;
+            result.duration = -1;
+        }
+        else
+        {
+            result.triggerState = static_cast<eTriggerState>(currentState + 1);
+            result.cost = 1;
+            result.duration = CREATURE_ABILITY_TURNS_DURATION;
+        }
+        break;
     case STACK_SETTING_SPELL_CASTING:
         result = GetNextSpellStateToCast();
         break;
-
     case STACK_SETTING_RESURRECTION:
         result = GetNextResurrectionState();
         break;
         // bool on/off settings
+    case STACK_SETTING_DOUBLE_LUCK:
     case STACK_SETTING_DAMAGE_INPUT:
         if (currentState)
         {
@@ -131,9 +154,22 @@ AbilityState CombatStackSettings::GetNextAbilityState(const eStackSettingsId id)
             result.cost = 2;
         }
         break;
+    case STACK_SETTING_WALL_ATTACK_AIM:
+    case STACK_SETTING_WALL_ATTACK_NO_DAMAGE:
+        if (currentState)
+        {
+            result.triggerState = TRIGGER_STATE_DEFAULT;
+            result.cost = 0;
+        }
+        else
+        {
+            result.triggerState = TRIGGER_STATE_ENABLED;
+            result.cost = 1;
+        }
+        break;
         // settings with 3 states (default, always, never)
     default:
-        if (currentState >= eTriggerState::TRIGGER_STATE_NEVER)
+        if (currentState >= TRIGGER_STATE_NEVER)
         {
             result.triggerState = TRIGGER_STATE_DEFAULT;
             result.cost = 0;
@@ -146,13 +182,13 @@ AbilityState CombatStackSettings::GetNextAbilityState(const eStackSettingsId id)
         break;
     }
 
-    return result;
+    return ABILITY_SWITCH_SUCCESS;
 }
 
-AbilityState CombatStackSettings::GetNextSpellStateToCast() const noexcept
+Ability CombatStackSettings::GetNextSpellStateToCast() const noexcept
 {
 
-    AbilityState returnResult{};
+    Ability returnResult{};
     if (IsAffectedBySetting(STACK_SETTING_SPELL_CASTING))
     {
         std::vector<eSpell> availableSpells;
@@ -190,11 +226,11 @@ AbilityState CombatStackSettings::GetNextSpellStateToCast() const noexcept
     return returnResult;
 }
 
-AbilityState CombatStackSettings::GetNextResurrectionState() const noexcept
+Ability CombatStackSettings::GetNextResurrectionState() const noexcept
 {
     const int remainder = creature->numberAtStart % 5;
 
-    AbilityState result{};
+    Ability result{};
 
     if (remainder == 0)
     {
@@ -248,10 +284,10 @@ AbilityState CombatStackSettings::GetNextResurrectionState() const noexcept
     return result;
 }
 
-BOOL CombatStackSettings::TriggerAbility(const eStackSettingsId id)
+BOOL CombatStackSettings::TriggerAbility(const eStackAbility id)
 {
 
-    AbilityState &abilityState = asArray[id];
+    Ability &abilityState = asArray[id];
     if (abilityState.triggerState == TRIGGER_STATE_DISABLED)
         return FALSE; // ability is not active, nothing to trigger
 
@@ -263,25 +299,14 @@ BOOL CombatStackSettings::TriggerAbility(const eStackSettingsId id)
     case STACK_SETTING_NEGATIVE_MORALE:
     case STACK_SETTING_FEAR:
     case STACK_SETTING_POSITIVE_LUCK:
-    case STACK_SETTING_NEGATIVE_LUCK:
 
         if (!abilityState.isTriggered)
         {
             abilityState.isTriggered = true;
             pointsToDecrease = abilityState.cost;
-            //            CombatSettingsManager::DecreaseUserPoints(abilityState.cost);
         }
         break;
-        // case STACK_SETTING_SPELL_CASTING:
-        // case STACK_SETTING_RESURRECTION:
-        // case STACK_SETTING_DAMAGE_INPUT:
-        // case STACK_SETTING_DOUBLE_DAMAGE:
-        // case STACK_SETTING_WALL_ATTACK_AIM:
-        // case STACK_SETTING_WALL_ATTACK_EXTENDED:
-        // case STACK_SETTING_AFTER_ATTACK_ABILITY:
 
-        //{
-        //}
     case STACK_SETTING_SPELL_CASTING:
         pointsToDecrease = abilityState.cost;
         abilityState.triggerState = TRIGGER_STATE_DISABLED;
@@ -289,21 +314,19 @@ BOOL CombatStackSettings::TriggerAbility(const eStackSettingsId id)
         break;
     default:
         pointsToDecrease = abilityState.cost;
-        *this = {}; // reset used data
+        abilityState = {}; // reset used data
         break;
     }
     if (pointsToDecrease)
     {
         CombatSettingsManager::DecreaseUserPoints(pointsToDecrease);
+        CombatSettingsManager::ReportActionUsage(this, nullptr, id, pointsToDecrease);
     }
-    CombatSettingsManager::ReportActionUsage(this, nullptr, id);
 
-    //  CombatStackSettings::SetCreatureAbilityState(creature, abilityId, AbilityState{});
     return TRUE;
 }
 
-int CombatStackSettings::BattleStack_Random(HiHook *hook, const int min, const int max,
-                                            const AbilityState &abilityChanger)
+int CombatStackSettings::BattleStack_Random(HiHook *hook, const int min, const int max, const Ability &abilityChanger)
 {
     switch (abilityChanger.triggerState)
     {
@@ -318,19 +341,34 @@ int CombatStackSettings::BattleStack_Random(HiHook *hook, const int min, const i
     return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 }
 
-int CombatStackSettings::BattleStack_ContinuousRandom(HiHook *hook, const int min, const int max,
-                                                      const AbilityState &triggerState)
+int CombatStackSettings::BattleStack_ContinuousRandom(const H3CombatCreature *combatCreature,
+                                                      const eStackAbility stackSettingId,
+                                                      const eSideAbility sideSettingId, HiHook *hook, const int min,
+                                                      const int max)
 {
-    switch (triggerState.triggerState)
+
+    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(combatCreature);
+    Ability settings = stackSettings.At(stackSettingId);
+    if (settings.triggerState == TRIGGER_STATE_DISABLED)
     {
-    case eTriggerState::TRIGGER_STATE_ALWAYS:
-        return min; // always trigger ability
-    case eTriggerState::TRIGGER_STATE_NEVER:
-        return max; // never trigger ability
-    default:
-        break;
+        const int side = combatCreature->side;
+
+        auto &sideSettings = CombatSideSettings::GetCombatSideSettings(side);
+        auto &sideSetting = sideSettings.At(sideSettingId);
+        if (sideSetting.triggerState == TRIGGER_STATE_ENABLED)
+        {
+            settings = sideSetting;
+            settings.triggerState = TRIGGER_STATE_NEVER; // if side is unaffected by, then stack is also
+            // unaffected by, so set it to never
+            sideSettings.TriggerAbility(sideSettingId);
+        }
     }
-    return 0;
+    else
+    {
+        stackSettings.TriggerAbility(stackSettingId);
+    }
+
+    return CombatStackSettings::BattleStack_Random(hook, min, max, settings);
 }
 
 void CombatStackSettings::HandleNewCombatRound()
@@ -341,14 +379,7 @@ void CombatStackSettings::HandleNewCombatRound()
         {
             for (auto &setting : stackSettings.asArray)
             {
-                if (setting.isTriggered)
-                {
-                    setting.duration--;
-                    if (setting.duration <= 0)
-                    {
-                        setting = {};
-                    }
-                }
+                setting.DecreaseTriggeredDuration();
             }
         }
     }
@@ -367,7 +398,7 @@ void CombatStackSettings::ResetAll()
         }
     }
 }
-BOOL CombatSideSettings::IsAffectedBySetting(const eSideSettingsId id) const
+BOOL CombatSideSettings::IsAffectedBySetting(const eSideAbility id) const
 {
     float maxSideResistance = 0.f;
     switch (id)
@@ -454,59 +485,77 @@ float CombatSideSettings::GetSideMaxResistance() const
     }
     return 1.f - result;
 }
-void CombatSideSettings::ResistanceBreachingTriggered(const int side, const int maxStackResistance)
-{
-    if (maxStackResistance < 1 || maxStackResistance > 80)
-        return;
 
-    auto &setting = sideSettings[side].unaffectedByResistance;
-    setting.triggerState = TRIGGER_STATE_DISABLED;
-    setting.duration = -1; // reset
-    if (maxStackResistance)
-    {
-        const int pointsToDecrease = maxStackResistance / 20 + 1; // decrease 1 point per 20% of resistance
-        CombatSettingsManager::DecreaseUserPoints(pointsToDecrease);
-    }
-}
 void CombatSideSettings::HandleNewCombatRound()
 {
     for (int side = 0; side < 2; side++)
     {
         for (auto &setting : sideSettings[side].asArray)
         {
-            if (setting.isTriggered)
-            {
-                setting.duration--;
-                if (setting.duration == 0)
-                {
-                    setting = {};
-                }
-            }
+            setting.DecreaseTriggeredDuration();
         }
         // reset resistance breach at the start of each round
         sideSettings[side].unaffectedByResistance = {};
     }
 }
 
-AbilityState CombatSideSettings::GetNextAbilityState(const eSideSettingsId id) const
+eAbilityStateSwitchError CombatSideSettings::SwitchToNextAbilityState(const eSideAbility id, Ability &returnValue) const
 {
-    const auto &abilty = asArray[id];
-
-    if (abilty.isTriggered)
+    returnValue = asArray[id];
+    if (returnValue.isTriggered)
     {
-        return abilty;
+        return ABILITY_SWITCH_SWITCH_BLOCKED;
     }
 
-    const auto currentState = abilty.triggerState;
-    AbilityState returnValue{}; // inited as disabled
-
-    if (abilty.triggerState == TRIGGER_STATE_DISABLED)
+    const auto currentState = returnValue.triggerState;
+    if (returnValue.triggerState == TRIGGER_STATE_DISABLED)
     {
+        returnValue.triggerState = TRIGGER_STATE_ENABLED;
         returnValue.duration = SIDE_ABILITY_TURNS_DURATION;
         returnValue.cost = 1;
     }
+    else
+    {
+        returnValue = {};
+    }
+    return ABILITY_SWITCH_SUCCESS;
+}
+BOOL CombatSideSettings::TriggerAbility(const eSideAbility id)
+{
 
-    return returnValue;
+    Ability &abilityState = asArray[id];
+    if (abilityState.triggerState == TRIGGER_STATE_DISABLED)
+        return FALSE;
+
+    int pointsToDecrease = 0; // abilityState.cost;
+    if (id == SIDE_SETTING_UNAFFECTED_BY_RESISTANCE)
+    {
+        pointsToDecrease = abilityState.cost;
+        abilityState = {};
+    }
+    else if (!abilityState.isTriggered)
+    {
+        abilityState.isTriggered = true;
+        pointsToDecrease = abilityState.cost;
+    }
+    if (pointsToDecrease)
+    {
+        CombatSettingsManager::DecreaseUserPoints(pointsToDecrease);
+        CombatSettingsManager::ReportActionUsage(nullptr, this, id, pointsToDecrease);
+    }
+
+    return TRUE;
+}
+
+void CombatSideSettings::ResistanceBreachingTriggered(const int side, const int maxStackResistance)
+{
+    if (maxStackResistance < 1 || maxStackResistance > 80)
+        return;
+
+    auto &setting = sideSettings[side].unaffectedByResistance;
+    const int pointsToDecrease = maxStackResistance / 20 + 1; // decrease 1 point per 20% of resistance
+    setting.cost = pointsToDecrease;
+    sideSettings[side].TriggerAbility(SIDE_SETTING_UNAFFECTED_BY_RESISTANCE);
 }
 void CombatSideSettings::ResetAll()
 {

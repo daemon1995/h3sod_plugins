@@ -23,9 +23,10 @@ class CreatureAttackRandom : public IGamePatch
 
     static CreatureAttackRandom *instance;
 
+    const H3CombatCreature *attackInitiator = nullptr;
     const H3CombatCreature *currentCombatCreature = nullptr;
-    const CombatStackSettings *currentSettings = nullptr;
-    const AbilityState *currentDamageAbility = nullptr;
+    CombatStackSettings *currentSettings = nullptr;
+    const Ability *currentDamageAbility = nullptr;
     BOOL8 stacksAttackedAtLeastOnce[2][h3::limits::TOTAL_COMBAT_CREATURES]{{}};
 
     // used to store infor about real damage dealt in case of abilities that trigger after attack and can change damage

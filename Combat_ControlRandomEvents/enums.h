@@ -9,25 +9,7 @@ enum eTriggerState : unsigned int
     TRIGGER_STATE_NEVER = 2,
     AMOUNT_OF_TRIGGER_STATES
 };
-// enum eSideTriggerState
-//{
-//     SIDE_TRIGGER_STATE_DISABLED = 0,
-//     SIDE_TRIGGER_STATE_WAITS_FOR_ACTIVATION = 1,
-//     SIDE_TRIGGER_STATE_ENABLED = 2,
-//     AMOUNT_OF_SIDE_TRIGGER_STATES
-// };
-//  enum eDamageState : unsigned int
-//{
-//      DAMAGE_STATE_DEFAULT = 0,
-//      DAMAGE_STATE_RANDOM = DAMAGE_STATE_DEFAULT,
-//      DAMAGE_STATE_MINIMUM = 1,
-//      DAMAGE_STATE_MAXIMUM = 2,
-//      DAMAGE_STATE_MIN_25 = 3,
-//      DAMAGE_STATE_MIN_50 = 4,
-//      DAMAGE_STATE_MIN_75 = 5,
-//      AMOUNT_OF_DAMAGE_STATES
-//  };
-enum ePhoenixResurrectionState
+enum ePhoenixResurrectionState : unsigned int
 {
     RESURRECTION_STATE_DEFAULT = 0,
     RESURRECTION_STATE_0_FROM_ANY = 1,
@@ -37,7 +19,7 @@ enum ePhoenixResurrectionState
     RESURRECTION_STATE_4_FROM_4 = 5,
     AMOUNT_OF_RESURRECTION_STATES
 };
-enum eSideSettingsId
+enum eSideAbility
 {
     SIDE_SETTING_NONE = -1,
     SIDE_SETTING_UNAFFECTED_BY_MORALE,
@@ -47,7 +29,7 @@ enum eSideSettingsId
     AMOUNT_OF_SIDE_SETTINGS
 };
 
-enum eStackSettingsId
+enum eStackAbility
 {
     STACK_SETTING_NONE = -1,
     STACK_SETTING_POSITIVE_MORALE,
@@ -57,36 +39,42 @@ enum eStackSettingsId
     STACK_SETTING_RESURRECTION,
     STACK_SETTING_MAGIC_RESISTANCE,
     STACK_SETTING_MAGIC_MIRROR,
-    // MASS_MAGIC_RESISTANCE,
     STACK_SETTING_POSITIVE_LUCK,
-    STACK_SETTING_NEGATIVE_LUCK,
+    STACK_SETTING_DOUBLE_LUCK,
     STACK_SETTING_DOUBLE_DAMAGE,
     STACK_SETTING_WALL_ATTACK_AIM,
-    STACK_SETTING_WALL_ATTACK_EXTENDED,
+    STACK_SETTING_WALL_ATTACK_NO_DAMAGE,
     STACK_SETTING_AFTER_ATTACK_ABILITY,
     STACK_SETTING_DAMAGE_VARIATION_FIRST,
     STACK_SETTING_DAMAGE_VARIATION_SECOND,
     STACK_SETTING_DAMAGE_INPUT,
     AMOUNT_OF_STACK_SETTINGS
 };
-enum eAbilitySwitchError
+enum eAbilityStateSwitchError : UINT
 {
-    ABILITY_SWITCH_NO_ERROR = 0,
+    ABILITY_SWITCH_SUCCESS = 0,
     ABILITY_SWITCH_NO_ATTEMPTS_LEFT,
+    ABILITY_SWITCH_SWITCH_BLOCKED,
     ABILITY_SWITCH_NO_EFFECT,
     ABILITY_SWITCH_NO_ABILITY,
 };
 
-struct AbilityState
+struct Ability
 {
     union {
         eTriggerState triggerState;
         ePhoenixResurrectionState resurrectionState = RESURRECTION_STATE_DEFAULT;
     };
     union {
-        INT duration;
+        INT8 duration;
         eSpell spellToCast = eSpell::NONE;
     };
-    int cost = 0;
-    BOOL isTriggered = false;
+    UINT8 cost = 0;
+    bool isTriggered = false;
+
+    inline void DecreaseTriggeredDuration()
+    {
+        if (isTriggered && --duration <= 0)
+            *this = {};
+    }
 };

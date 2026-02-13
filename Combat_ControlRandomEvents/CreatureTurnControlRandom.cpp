@@ -13,7 +13,7 @@ void __stdcall CreatureTurnControlRandom::BattleMgr_CheckGoodMorale(HiHook *h, c
 {
 
     instance->currentSettings = &CombatStackSettings::GetCombatStackSettings(side, index);
-	instance->currentCreatureSide = side;
+    instance->currentCreatureSide = side;
     THISCALL_3(void, h->GetDefaultFunc(), _this, side, index);
     instance->currentSettings = nullptr;
 }
@@ -21,26 +21,9 @@ void __stdcall CreatureTurnControlRandom::BattleMgr_CheckGoodMorale(HiHook *h, c
 int __stdcall CreatureTurnControlRandom::BattleStack_PositiveMoraleRandom(HiHook *hook, const int min, const int max)
 {
 
-
-
-    const auto* luckSetting = &instance->currentSettings->At(STACK_SETTING_POSITIVE_MORALE);
-    int pointsToDecrease = 1;
-    if (luckSetting->triggerState == TRIGGER_STATE_DEFAULT)
-    {
-        const int side = instance->currentCreatureSide;
-        luckSetting = &CombatSideSettings::GetCombatSideSettings(side).At(SIDE_SETTING_UNAFFECTED_BY_MORALE);
-        pointsToDecrease = 2;
-    }
-    //if (luckSetting->Activate())
-    {
-        CombatSettingsManager::DecreaseUserPoints(pointsToDecrease);
-    }
-
-    return CombatStackSettings::BattleStack_Random(hook, min, max, *luckSetting);
-
-
-    return CombatStackSettings::BattleStack_Random(
-        hook, min, max, instance->currentSettings->At(eStackSettingsId::STACK_SETTING_POSITIVE_MORALE));
+    return CombatStackSettings::BattleStack_ContinuousRandom(instance->currentSettings->creature,
+                                                             STACK_SETTING_POSITIVE_MORALE,
+                                                             SIDE_SETTING_UNAFFECTED_BY_MORALE, hook, min, max);
 }
 
 int __stdcall CreatureTurnControlRandom::BattleMgr_CheckBadMorale(HiHook *h, const H3CombatManager *_this,
@@ -54,21 +37,30 @@ int __stdcall CreatureTurnControlRandom::BattleMgr_CheckBadMorale(HiHook *h, con
 int __stdcall CreatureTurnControlRandom::BattleStack_NegativeMoraleRandom(HiHook *hook, const int min, const int max)
 {
 
-    return CombatStackSettings::BattleStack_Random(
-        hook, min, max, instance->currentSettings->At(eStackSettingsId::STACK_SETTING_NEGATIVE_MORALE));
+    return CombatStackSettings::BattleStack_ContinuousRandom(instance->currentSettings->creature,
+                                                             STACK_SETTING_NEGATIVE_MORALE,
+                                                             SIDE_SETTING_UNAFFECTED_BY_MORALE, hook, min, max);
 }
 
 int __stdcall CreatureTurnControlRandom::AIBattleStack_NegativeMoraleRandom(HiHook *hook, const int min, const int max)
 {
     if (instance->currentSettings)
     {
+        const int side = instance->currentSettings->creature->side;
         switch (instance->currentSettings->At(STACK_SETTING_NEGATIVE_MORALE).triggerState)
         {
         case eTriggerState::TRIGGER_STATE_ALWAYS:
-            return max; // always trigger ability
+            return max; // always trigger bad morale
         case eTriggerState::TRIGGER_STATE_NEVER:
-            return min; // never trigger ability
+            return min; // never trigger bad morale
         default:
+            if (CombatSideSettings::GetCombatSideSettings(side).At(SIDE_SETTING_UNAFFECTED_BY_MORALE).triggerState ==
+                TRIGGER_STATE_ENABLED) // if morale setting is not set for stack, then check if it is set for side, and
+                                       // trigger it if it is
+            {
+                return min; // never trigger bad morale
+            }
+
             break; // return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
         }
     }
@@ -88,7 +80,9 @@ char __stdcall CreatureTurnControlRandom::BattleMgr_CheckFear(HiHook *h, const H
 
 int __stdcall CreatureTurnControlRandom::BattleStack_FearRandom(HiHook *hook, const int min, const int max)
 {
-    return CombatStackSettings::BattleStack_Random(hook, min, max, instance->currentSettings->At(STACK_SETTING_FEAR));
+
+    return CombatStackSettings::BattleStack_ContinuousRandom(instance->currentSettings->creature, STACK_SETTING_FEAR,
+                                                             SIDE_SETTING_UNAFFECTED_BY_FEAR, hook, min, max);
 }
 
 void CreatureTurnControlRandom::CreatePatches()

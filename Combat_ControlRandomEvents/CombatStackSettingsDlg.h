@@ -25,9 +25,9 @@ class CombatStackSettingsDlg : public H3Dlg
 
         } radioButtons[3];
 
-        eStackSettingsId settingId;
+        eStackAbility settingId;
 
-        DlgRadioGroup(const RECT &pos, const int firstItemId, const eStackSettingsId settingId,
+        DlgRadioGroup(const RECT &pos, const int firstItemId, const eStackAbility settingId,
                       const eTriggerState defaultState = TRIGGER_STATE_DEFAULT);
     };
 

@@ -33,7 +33,7 @@ class CombatSettingsManager : public IGamePatch
 
     BOOL combatIsStarted = false;
     BOOL tacticsPhaseRound = false;
-    INT userMaxControlPoints = 5;
+    INT userMaxControlPoints = 3;
     INT userControlPoints = 0;
     INT userControlPointsSpent = 0;
     INT userActionsUsed = 0;
@@ -65,10 +65,18 @@ class CombatSettingsManager : public IGamePatch
   public:
     static CombatSettingsManager &GetInstance();
 
-    static int GetUserPoints() noexcept;
+    static int GetUserPoints() noexcept
+    {
+        return instance->userControlPoints;
+    }
+    static int GetMaxUserPoints() noexcept
+    {
+        return instance->userMaxControlPoints;
+    }
     static void SetUserPoints(const int newSize) noexcept;
     static BOOL DecreaseUserPoints(const int toDecrease) noexcept;
     static void WriteMessageToLog(LPCSTR msg, const eLogTargetType logType = LOG_TYPE_SCREEN);
     static void ReportActionUsage(const CombatStackSettings *creatureSettings, const CombatSideSettings *side,
-                                  const int settingId, const eLogTargetType logType = LOG_TYPE_SCREEN);
+                                  const int settingId, const int pointsUsed = 0,
+                                  const eLogTargetType logType = LOG_TYPE_SCREEN);
 };

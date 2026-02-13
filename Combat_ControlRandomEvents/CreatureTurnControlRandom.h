@@ -4,7 +4,7 @@ class CreatureTurnControlRandom : public IGamePatch
     static constexpr LPCSTR instanceName = "SoDPlugin.CreatureTurnControlRandom.daemon_n";
     static CreatureTurnControlRandom *instance;
 
-    const CombatStackSettings *currentSettings = nullptr;
+    CombatStackSettings *currentSettings = nullptr;
     int currentCreatureSide = -1;
 
   private:

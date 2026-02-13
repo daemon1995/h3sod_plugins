@@ -112,8 +112,8 @@ BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creatu
 static eSpell GetUserSelectedSpell(const H3CombatCreature *creature)
 {
     const auto &spellData =
-        CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_SPELL_CASTING];
-    if (spellData.triggerState == TRIGGER_STATE_ALWAYS)
+        CombatStackSettings::GetCombatStackSettings(creature)[eStackAbility::STACK_SETTING_SPELL_CASTING];
+    if (spellData.triggerState == TRIGGER_STATE_ENABLED)
         return spellData.spellToCast;
 
     return eSpell::NONE;
@@ -133,7 +133,8 @@ static void __stdcall BattleStack_CastGenieSpell(HiHook *h, H3CombatCreature *cr
         if (targetStack->CanReceiveSpell(setSpellByUser))
         {
             CombatStackSettings::GetCombatStackSettings(creature).TriggerAbility(STACK_SETTING_SPELL_CASTING);
-            P_CombatManager->CastSpell(setSpellByUser, pos, 1, -1, eSecSkillLevel::ADVANCED, 6);
+            const int spellPower = GetCretureSpellPower(creature);
+            P_CombatManager->CastSpell(setSpellByUser, pos, 1, -1, eSecSkillLevel::ADVANCED, spellPower);
             return;
         }
     }
@@ -247,10 +248,10 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
         for (size_t i = 0; i < 2; i++)
         {
             if (CombatSideSettings::GetCombatSideSettings(i).unaffectedByResistance.triggerState ==
-                eTriggerState::TRIGGER_STATE_ALWAYS)
+                TRIGGER_STATE_ENABLED)
             {
+                maxSideResistancePower[i] = 1.f - BattleMgr_BattleSide_GetSpellAffectionRate(i, spellId, casterKind);
             }
-            maxSideResistancePower[i] = 1.f - BattleMgr_BattleSide_GetSpellAffectionRate(i, spellId, casterKind);
             // CombatSideSettings::GetCombatSideSettings(i).GetSideMaxResistance();
             //   libc::sprintf(h3_TextBuffer, "side %d max resistance power: %f", i, maxSideResistancePower[i]);
             //     CombatSettingsManager::WriteMessageToLog(h3_TextBuffer);
@@ -279,7 +280,7 @@ static _LHF_(BattleStack_PhoenixResurrection)
     const auto *creature = reinterpret_cast<H3CombatCreature *>(c->esi);
     auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
 
-    constexpr eStackSettingsId abilityId = STACK_SETTING_RESURRECTION;
+    constexpr eStackAbility abilityId = STACK_SETTING_RESURRECTION;
 
     if (settings[abilityId].resurrectionState == RESURRECTION_STATE_DEFAULT)
     {
@@ -298,23 +299,23 @@ static _LHF_(BattleStack_PhoenixResurrection)
 static _LHF_(BattleManager_BattleStack_GetResistanceRandom)
 {
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->edi);
-    if (CombatSettingsManager::GetUserPoints())
-    {
-        const auto &resistance =
-            CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_MAGIC_RESISTANCE];
+    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
+    auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
 
-        switch (resistance.triggerState)
+    if (ability.triggerState != TRIGGER_STATE_DEFAULT)
+    {
+        switch (ability.triggerState)
         {
-        case eTriggerState::TRIGGER_STATE_ALWAYS:
+        case TRIGGER_STATE_ALWAYS:
             c->ecx = 100; // -> leads to Rand(100, 100) > [resistance_value]
             break;
-        case eTriggerState::TRIGGER_STATE_NEVER:
+        case TRIGGER_STATE_NEVER:
             c->edx = 1; // -> leads to Rand(1, 1) > [resistance_value]
             break;
         default:
-            return EXEC_DEFAULT;
+            break;
         }
-        //    CombatSettingsManager::DecreaseUserPoints(1);
+        stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
     }
 
     return EXEC_DEFAULT;
@@ -325,7 +326,7 @@ static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
     //   if (CombatSettingsManager::GetUserPoints())
     {
         const auto &resistance =
-            CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_MAGIC_RESISTANCE];
+            CombatStackSettings::GetCombatStackSettings(creature)[eStackAbility::STACK_SETTING_MAGIC_RESISTANCE];
 
         switch (resistance.triggerState)
         {
@@ -349,7 +350,7 @@ static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
     //    if (CombatSettingsManager::GetUserPoints())
     {
         const auto &resistance =
-            CombatStackSettings::GetCombatStackSettings(creature)[eStackSettingsId::STACK_SETTING_MAGIC_RESISTANCE];
+            CombatStackSettings::GetCombatStackSettings(creature)[eStackAbility::STACK_SETTING_MAGIC_RESISTANCE];
 
         switch (resistance.triggerState)
         {
@@ -513,7 +514,7 @@ SpellSelectionDlg::SpellSelectionDlg(const H3CombatCreature *creature, const std
     H3DlgItem *selectedSpellItem = nullptr;
 
     auto &creatureSettings = CombatStackSettings::GetCombatStackSettings(creature);
-    const eSpell preselectedSpell = creatureSettings.At(eStackSettingsId::STACK_SETTING_SPELL_CASTING).spellToCast;
+    const eSpell preselectedSpell = creatureSettings.At(eStackAbility::STACK_SETTING_SPELL_CASTING).spellToCast;
 
     for (size_t row = 0; row < rows; row++)
     {
