@@ -159,6 +159,14 @@ LPCSTR PluginText::GetSideAbilitySwitchErrorText(const CombatSideSettings *sideS
 
     return h3_TextBuffer;
 }
+LPCSTR PluginText::GetSideAbilityCustomText(const eSideAbility settingId) const noexcept
+{
+    return sideSettingsText[settingId].logText.c_str();
+}
+LPCSTR PluginText::GetCreatureAbilityCustomText(const eStackAbility settingId) const noexcept
+{
+    return stackSettingsText[settingId].logText.c_str();
+}
 LPCSTR PluginText::GetStateText(const eStackAbility settingId, const Ability &changer) const noexcept
 {
     switch (settingId)

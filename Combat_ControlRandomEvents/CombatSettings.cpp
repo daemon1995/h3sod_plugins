@@ -93,9 +93,11 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackAbility id) const
     case STACK_SETTING_AFTER_ATTACK_ABILITY:
         return CreatureAttackRandom::BattleStack_HasAfterAttackAbility(creature);
     case STACK_SETTING_DAMAGE_VARIATION_FIRST:
+    case STACK_SETTING_DAMAGE_INPUT:
         return info.damageLow < info.damageHigh;
     case STACK_SETTING_DAMAGE_VARIATION_SECOND:
         return info.doubleAttack && info.damageLow < info.damageHigh && (!info.shooter || info.numberShots > 1);
+
     default:
         break;
     }
@@ -121,17 +123,25 @@ eAbilityStateSwitchError CombatStackSettings::SwitchToNextAbilityState(const eSt
         {
             return ABILITY_SWITCH_SWITCH_BLOCKED; // already triggered, can't switch
         }
-        if (currentState >= TRIGGER_STATE_NEVER)
+        switch (currentState)
         {
-            result.triggerState = TRIGGER_STATE_DEFAULT;
-            result.cost = 0;
+
+        case TRIGGER_STATE_DEFAULT:
+
+            result.triggerState = TRIGGER_STATE_ALWAYS;
+            result.cost = 1;
             result.duration = -1;
-        }
-        else
-        {
-            result.triggerState = static_cast<eTriggerState>(currentState + 1);
+            break;
+
+        case TRIGGER_STATE_ALWAYS:
+            result.triggerState = TRIGGER_STATE_NEVER;
             result.cost = 1;
             result.duration = CREATURE_ABILITY_TURNS_DURATION;
+            break;
+        case TRIGGER_STATE_NEVER:
+        default:
+            result = {};
+            break;
         }
         break;
     case STACK_SETTING_SPELL_CASTING:
@@ -284,7 +294,7 @@ Ability CombatStackSettings::GetNextResurrectionState() const noexcept
     return result;
 }
 
-BOOL CombatStackSettings::TriggerAbility(const eStackAbility id)
+BOOL CombatStackSettings::TriggerAbility(const eStackAbility id, const BOOL dontSpendPoints)
 {
 
     Ability &abilityState = asArray[id];
@@ -300,10 +310,19 @@ BOOL CombatStackSettings::TriggerAbility(const eStackAbility id)
     case STACK_SETTING_FEAR:
     case STACK_SETTING_POSITIVE_LUCK:
 
-        if (!abilityState.isTriggered)
+        if (abilityState.triggerState == TRIGGER_STATE_NEVER)
         {
-            abilityState.isTriggered = true;
+            if (!abilityState.isTriggered)
+            {
+                abilityState.duration = CREATURE_ABILITY_TURNS_DURATION;
+                abilityState.isTriggered = true;
+                pointsToDecrease = abilityState.cost;
+            }
+        }
+        else
+        {
             pointsToDecrease = abilityState.cost;
+            abilityState = {}; // reset used data
         }
         break;
 
@@ -319,6 +338,10 @@ BOOL CombatStackSettings::TriggerAbility(const eStackAbility id)
     }
     if (pointsToDecrease)
     {
+        if (dontSpendPoints)
+        {
+            pointsToDecrease = 0;
+        }
         CombatSettingsManager::DecreaseUserPoints(pointsToDecrease);
         CombatSettingsManager::ReportActionUsage(this, nullptr, id, pointsToDecrease);
     }

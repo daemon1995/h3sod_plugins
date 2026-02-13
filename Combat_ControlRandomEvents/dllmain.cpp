@@ -37,9 +37,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         if (!initialized)
         {
             initialized = true;
-            globalPatcher = GetPatcher();
-            _PI = globalPatcher->CreateInstance(dllText::instanceName);
-            _PI->WriteLoHook(0x4EEAF2, HooksInit);
+
+            const H3Version gameVersion;
+            if (gameVersion.sod() || gameVersion.version() == H3Version::GameVersion::SOD_POLISH_GOLD)
+            {
+                globalPatcher = GetPatcher();
+                _PI = globalPatcher->CreateInstance(dllText::instanceName);
+                _PI->WriteLoHook(0x4EEAF2, HooksInit);
+            }
         }
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:

@@ -1,5 +1,7 @@
 #include "framework.h"
 
+CombatSettingsManager *CombatSettingsManager::instance = nullptr;
+
 #define RANDOM_HANDLER_DECLARATION(className)                                                                          \
     class className : public IGamePatch                                                                                \
     {                                                                                                                  \
@@ -25,13 +27,13 @@ struct PluginText
                                              const eAbilityStateSwitchError errorType) const noexcept;
     LPCSTR GetSideAbilitySwitchErrorText(const CombatSideSettings *sideSettings, const int settingId,
                                          const eAbilityStateSwitchError errorType) const noexcept;
+
+    LPCSTR GetSideAbilityCustomText(const eSideAbility settingId) const noexcept;
 };
 struct SpellSelectionDlg
 {
     static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
 };
-
-CombatSettingsManager *CombatSettingsManager::instance = nullptr;
 
 CombatSettingsManager::CombatSettingsManager() : IGamePatch(_PI)
 {
@@ -115,7 +117,16 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
             {
                 sideSettingId = SIDE_SETTING_UNAFFECTED_BY_RESISTANCE;
                 if (combatSideSettings->IsAffectedBySetting(sideSettingId))
+                {
+                    if (combatSideSettings->At(sideSettingId).triggerState == TRIGGER_STATE_DISABLED)
+                    {
+                        auto text = pluginText->GetSideAbilityCustomText(SIDE_SETTING_UNAFFECTED_BY_RESISTANCE);
+                        if (!H3Messagebox::Choice(text))
+                            return;
+                    }
+
                     errorType = ABILITY_SWITCH_SUCCESS;
+                }
             }
             else
             {
@@ -127,9 +138,8 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
         case eVKey::H3VK_K: // damage
             if (ctrlPressed)
             {
-
                 stackSettingId = STACK_SETTING_DAMAGE_INPUT;
-                if (combatSideSettings->IsAffectedBySetting(sideSettingId))
+                if (combatStackSettings->IsAffectedBySetting(stackSettingId))
                     errorType = ABILITY_SWITCH_SUCCESS;
             }
             else
@@ -365,7 +375,7 @@ CombatSettingsManager &CombatSettingsManager::GetInstance()
     return *instance;
 }
 
-void TestInitiate(CombatSettingsManager *instance)
+static void TestInitiate(CombatSettingsManager *instance)
 {
     return;
     CombatStackSettings tempAttacker;
@@ -468,8 +478,8 @@ void __stdcall CombatSettingsManager::BattleMgr_StartBattle(HiHook *h, H3CombatM
 
     if (_this->tacticsPhase)
     {
-        libc::sprintf(h3_TextBuffer, "Creature Settings Manager: New Round %d", _this->turn);
-        H3Messagebox(h3_TextBuffer);
+        //   libc::sprintf(h3_TextBuffer, "Creature Settings Manager: New Round %d", _this->turn);
+        // H3Messagebox(h3_TextBuffer);
     }
     else
     {
@@ -501,12 +511,16 @@ void __stdcall CombatSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatMana
 
     if (instance->combatIsStarted)
     {
-        TestInitiate(instance);
-        libc::sprintf(h3_TextBuffer, "Creature Settings Manager: New Round %d", _this->turn);
-        _this->AddStatusMessage(h3_TextBuffer);
+        //   TestInitiate(instance);
+        // libc::sprintf(h3_TextBuffer, "Creature Settings Manager: New Round %d", _this->turn);
+        // _this->AddStatusMessage(h3_TextBuffer);
         //  H3Messagebox("instance->combatIsStarted");
         if (_this->turn + 1 - instance->tacticsPhaseRound == 2)
         {
+        }
+        if (_this->tacticsPhase)
+        {
+            return;
         }
         CombatStackSettings::HandleNewCombatRound();
         CombatSideSettings::HandleNewCombatRound();

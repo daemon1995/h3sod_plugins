@@ -5,6 +5,8 @@ struct PluginText : IPluginText
     static constexpr LPCSTR HD_MOD_DEFAULT_LANG = "en";
     static char textBuffer[512];
     static UINT codepage;
+    static PluginText *instance;
+
     struct DlgText
     {
         LPCSTR title = nullptr;
@@ -49,12 +51,6 @@ struct PluginText : IPluginText
     } stackSettingsText[AMOUNT_OF_STACK_SETTINGS], sideSettingsText[AMOUNT_OF_SIDE_SETTINGS],
         triggerStates[AMOUNT_OF_TRIGGER_STATES], damageStates[AMOUNT_OF_TRIGGER_STATES];
 
-    enum eTextError : int
-    {
-    };
-
-    static PluginText *instance;
-
   protected:
     void Load() override;
 
@@ -78,4 +74,6 @@ struct PluginText : IPluginText
                                              const eAbilityStateSwitchError errorType) const noexcept;
     LPCSTR GetSideAbilitySwitchErrorText(const CombatSideSettings *sideSettings, const int settingId,
                                          const eAbilityStateSwitchError errorType) const noexcept;
+    LPCSTR GetSideAbilityCustomText(const eSideAbility settingId) const noexcept;
+    LPCSTR GetCreatureAbilityCustomText(const eStackAbility settingId) const noexcept;
 };

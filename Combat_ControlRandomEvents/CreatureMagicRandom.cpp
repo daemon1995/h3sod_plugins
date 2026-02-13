@@ -202,7 +202,7 @@ skillLevel, int spellPower)*/
 const CombatSideSettings *currentSideSettings = nullptr;
 double maxSideResistancePower[2] = {0.f, 0.f};
 
-double BattleMgr_BattleSide_GetSpellAffectionRate(const int side, const eSpell spellId, const int casterKind)
+static double BattleMgr_BattleSide_GetSpellAffectionRate(const int side, const eSpell spellId, const int casterKind)
 {
 
     const auto &mgr = P_CombatManager->Get();
@@ -392,7 +392,7 @@ static _LHF_(BattleManager_BattleStack_GetAreaSpellResistanceRandom)
     return EXEC_DEFAULT;
 }
 
-_LHF_(BattleManager_BattleStack_MagicMirrorRandom)
+static _LHF_(BattleManager_BattleStack_MagicMirrorRandom)
 {
     // if creature doesn't have magic mirror
     if (!c->edi || c->edi >= 100)
@@ -423,6 +423,23 @@ _LHF_(BattleManager_BattleStack_MagicMirrorRandom)
     return NO_EXEC_DEFAULT;
 }
 
+// reset all the personal stack settings
+static void __stdcall BattleManager_Resurrection(HiHook *h, H3CombatManager *_this, const H3CombatCreature *creature,
+                                                 const int resurrectionPowe, const int skillLevel)
+{
+    if (creature && creature->numberAlive <= 0)
+    {
+        CombatStackSettings::GetCombatStackSettings(creature) = {};
+    }
+    THISCALL_4(void, h->GetDefaultFunc(), _this, creature, resurrectionPowe, skillLevel);
+}
+
+static _LHF_(BattleManager_AddNewStackByPitLord)
+{
+    const auto &creature = reinterpret_cast<H3CombatCreature *>(c->esi);
+    CombatStackSettings::GetCombatStackSettings(creature) = {};
+    return EXEC_DEFAULT;
+}
 void CreatureMagicRandom::CreatePatches()
 {
 
@@ -463,6 +480,15 @@ void CreatureMagicRandom::CreatePatches()
 
     // Magic Mirror
     WriteLoHook(0x059F1DF, BattleManager_BattleStack_MagicMirrorRandom);
+
+    // reset resurrected stacks
+    WriteHiHook(0x05A7870, THISCALL_, BattleManager_Resurrection);
+
+    //  reset added stacks by spell
+    WriteLoHook(0x05A777E, BattleManager_AddNewStackByPitLord); // pitlord
+
+    //   WriteHiHook(0x05A715F, THISCALL_, BattleManager_AddNewStackBySpell);
+    //   WriteHiHook(0x05A7600, THISCALL_, BattleManager_AddNewStackBySpell);
 }
 
 CreatureMagicRandom &CreatureMagicRandom::GetInstance()

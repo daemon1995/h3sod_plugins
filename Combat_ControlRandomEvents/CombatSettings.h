@@ -4,7 +4,7 @@ struct CombatStackSettings
 {
     static constexpr int CREATURE_ABILITY_TURNS_DURATION = 5;
     static CombatStackSettings combatStackSettings[2][h3::limits::COMBAT_CREATURES + 1];
-    
+
     const H3CombatCreature *creature = nullptr;
 
     union {
@@ -56,7 +56,7 @@ struct CombatStackSettings
     eAbilityStateSwitchError SwitchToNextAbilityState(const eStackAbility id, Ability &outState) const;
     Ability GetNextSpellStateToCast() const noexcept;
     Ability GetNextResurrectionState() const noexcept;
-    BOOL TriggerAbility(const eStackAbility id);
+    BOOL TriggerAbility(const eStackAbility id, const BOOL dontSpendPoints = false);
 
   public:
     static int BattleStack_Random(HiHook *hook, const int min, const int max, const Ability &triggerState);

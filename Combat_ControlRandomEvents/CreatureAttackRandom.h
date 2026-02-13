@@ -24,7 +24,8 @@ class CreatureAttackRandom : public IGamePatch
     static CreatureAttackRandom *instance;
 
     const H3CombatCreature *attackInitiator = nullptr;
-    const H3CombatCreature *currentCombatCreature = nullptr;
+    const H3CombatCreature *currentCombatCreatureAttacker = nullptr;
+    const H3CombatCreature *currentCombatCreatureDefender = nullptr;
     CombatStackSettings *currentSettings = nullptr;
     const Ability *currentDamageAbility = nullptr;
     BOOL8 stacksAttackedAtLeastOnce[2][h3::limits::TOTAL_COMBAT_CREATURES]{{}};
@@ -38,6 +39,11 @@ class CreatureAttackRandom : public IGamePatch
         BOOL isLuckTriggered = false;
         BOOL isDoubleDamageTriggered = false;
     } attackerActionData;
+    struct
+    {
+        BOOL isDoubleDamageDisabled = false;
+
+    } darkKnightHandlers[2];
 
     INT targetWallId = -1;
 
@@ -98,9 +104,9 @@ class DamageInputDlg : H3Dlg
     const PossibleDamage &basePossibleDamage;
     const PossibleDamage &finalPossibleDamage;
 
+    H3DlgText* userInfoText = nullptr;
     H3DlgEdit *userInputDamage = nullptr;
-
-    int resultBaseDamage = 0;
+    
     union DamageRow {
         struct
         {
@@ -115,6 +121,8 @@ class DamageInputDlg : H3Dlg
     //  H3DlgText *finalDamageText = nullptr;
     H3DlgDefButton *okButton = nullptr;
     H3DlgDefButton *cancelButton = nullptr;
+
+    int resultBaseDamage = 0;
 
     DamageInputDlg(const H3CombatCreature *attacker, const H3CombatCreature *target,
                    const PossibleDamage &basePossibleDamage, const PossibleDamage &finalPossibleDamage,

@@ -2,6 +2,12 @@
 
 #include "CreatureAttackRandom.h"
 
+struct PluginText
+{
+    static PluginText &GetInstance();
+    LPCSTR GetCreatureAbilityCustomText(const eStackAbility settingId) const noexcept;
+};
+
 CreatureAttackRandom *CreatureAttackRandom::instance = nullptr;
 CreatureAttackRandom::CreatureAttackRandom() : IGamePatch(globalPatcher->CreateInstance(instanceName))
 {
@@ -42,8 +48,13 @@ void __stdcall CreatureAttackRandom::BattleStack_Shoot(HiHook *hook, const H3Com
         stackAttacked = true;
 
     instance->currentSettings = &CombatStackSettings::GetCombatStackSettings(attacker);
+    instance->currentCombatCreatureAttacker = attacker;
+    instance->currentCombatCreatureDefender = defender;
 
     THISCALL_2(void, hook->GetDefaultFunc(), attacker, defender);
+
+    instance->currentCombatCreatureAttacker = nullptr;
+    instance->currentCombatCreatureDefender = nullptr;
 
     instance->currentSettings = nullptr;
     instance->attackerActionData.isSecondAttack = false;
@@ -58,8 +69,13 @@ char __stdcall CreatureAttackRandom::BattleStack_AttackMelee(HiHook *hook, const
     else
         stackAttacked = true;
     instance->currentSettings = &CombatStackSettings::GetCombatStackSettings(attacker);
+    instance->currentCombatCreatureAttacker = attacker;
+    instance->currentCombatCreatureDefender = defender;
 
     const char result = THISCALL_3(char, hook->GetDefaultFunc(), attacker, defender, direction);
+
+    instance->currentCombatCreatureAttacker = nullptr;
+    instance->currentCombatCreatureDefender = nullptr;
 
     instance->currentSettings = nullptr;
     instance->attackerActionData.isSecondAttack = false;
@@ -78,9 +94,8 @@ int __stdcall CreatureAttackRandom::BattleStack_DamageRandom(HiHook *h, const in
     const eStackAbility damageSettingId = instance->attackerActionData.isSecondAttack
                                               ? STACK_SETTING_DAMAGE_VARIATION_SECOND
                                               : STACK_SETTING_DAMAGE_VARIATION_FIRST;
-    const auto state = settings->At(damageSettingId).triggerState;
 
-    switch (state)
+    switch (settings->At(damageSettingId).triggerState)
     {
     case TRIGGER_STATE_DEFAULT:
         break;
@@ -100,8 +115,31 @@ int __stdcall CreatureAttackRandom::BattleStack_DamageRandom(HiHook *h, const in
 
 int __stdcall CreatureAttackRandom::BattleStack_AfterAttackAbilityRandom(HiHook *hook, const int min, const int max)
 {
-    return CombatStackSettings::BattleStack_Random(hook, min, max,
-                                                   instance->currentSettings->At(STACK_SETTING_AFTER_ATTACK_ABILITY));
+
+    auto &stackSettings = instance->currentSettings;
+    constexpr auto stackSettingId = STACK_SETTING_AFTER_ATTACK_ABILITY;
+
+    if (instance->currentCombatCreatureDefender->numberAlive <= 0)
+    {
+        // if defender is already dead then don't trigger after attack ability, just return default value
+        return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
+    }
+
+    switch (stackSettings->At(stackSettingId).triggerState)
+    {
+    case eTriggerState::TRIGGER_STATE_ALWAYS:
+        stackSettings->TriggerAbility(stackSettingId);
+        return min; // always trigger ability
+    case eTriggerState::TRIGGER_STATE_NEVER:
+
+        stackSettings->TriggerAbility(
+            stackSettingId, instance->darkKnightHandlers[stackSettings->creature->side].isDoubleDamageDisabled);
+        return max; // never trigger ability
+    default:
+        break;
+    }
+
+    return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 }
 
 int __stdcall CreatureAttackRandom::BattleStack_DeathStareAbility(HiHook *hook, const int min, const int max)
@@ -114,20 +152,50 @@ int __stdcall CreatureAttackRandom::BattleStack_DeathStareAbility(HiHook *hook, 
     if (creature && creature->numberAlive > 10)
         return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 
-    return CombatStackSettings::BattleStack_Random(hook, min, max,
-                                                   instance->currentSettings->At(STACK_SETTING_AFTER_ATTACK_ABILITY));
+    auto &stackSettings = instance->currentSettings;
+    constexpr auto stackSettingId = STACK_SETTING_AFTER_ATTACK_ABILITY;
+
+    switch (stackSettings->At(stackSettingId).triggerState)
+    {
+    case eTriggerState::TRIGGER_STATE_ALWAYS:
+        stackSettings->TriggerAbility(stackSettingId);
+        return min; // always trigger ability
+    case eTriggerState::TRIGGER_STATE_NEVER:
+        stackSettings->TriggerAbility(stackSettingId);
+        return max; // never trigger ability
+    default:
+        break;
+    }
+
+    return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 }
 
 int __stdcall CreatureAttackRandom::BattleStack_DoubleDamageRandom(HiHook *hook, const int min, const int max)
 {
-    const auto &attackerActionData = instance->attackerActionData;
+    auto &attackerActionData = instance->attackerActionData;
     if (attackerActionData.isDamageEmulation)
     {
         return attackerActionData.isDoubleDamageTriggered ? min : max;
     }
 
-    return CombatStackSettings::BattleStack_Random(hook, min, max,
-                                                   instance->currentSettings->At(STACK_SETTING_DOUBLE_DAMAGE));
+    auto &stackSettings = instance->currentSettings;
+    constexpr auto stackSettingId = STACK_SETTING_DOUBLE_DAMAGE;
+    Ability settings = stackSettings->At(stackSettingId);
+
+    switch (settings.triggerState)
+    {
+    case eTriggerState::TRIGGER_STATE_ALWAYS:
+        stackSettings->TriggerAbility(stackSettingId);
+        return min; // always trigger ability
+    case eTriggerState::TRIGGER_STATE_NEVER:
+        stackSettings->TriggerAbility(stackSettingId);
+        instance->darkKnightHandlers[stackSettings->creature->side].isDoubleDamageDisabled = true;
+        return max; // never trigger ability
+    default:
+        break;
+    }
+
+    return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 }
 
 // set flag that double damage has been triggered, so that damage emulation can return correct value
@@ -300,11 +368,13 @@ void CreatureAttackRandom::ResetAfterAttackState()
 {
     attackInitiator = nullptr;
     currentSettings = nullptr;
-    currentCombatCreature = nullptr;
+    currentCombatCreatureAttacker = nullptr;
+    currentCombatCreatureDefender = nullptr;
     currentDamageAbility = nullptr;
     attackerActionData = {};
     targetWallId = -1;
     libc::memset(stacksAttackedAtLeastOnce, 0, sizeof(stacksAttackedAtLeastOnce));
+    libc::memset(darkKnightHandlers, 0, sizeof(darkKnightHandlers));
 }
 
 static int BattleStack_CalaculateFinalDamageFromBaseDamage(const H3CombatCreature *attacker,
@@ -326,29 +396,35 @@ static int BattleStack_CalaculateFinalDamageFromBaseDamage(const H3CombatCreatur
 DamageInputDlg::DamageInputDlg(const H3CombatCreature *attacker, const H3CombatCreature *target,
                                const PossibleDamage &basePossibleDamage, const PossibleDamage &finalPossibleDamage,
                                const int width, const int height)
-    : H3Dlg(width, height, -1, -1, true, true), attacker(attacker), target(target),
+    : H3Dlg(width, height, -1, -1, false, true), attacker(attacker), target(target),
       basePossibleDamage(basePossibleDamage), finalPossibleDamage(finalPossibleDamage),
       resultBaseDamage(basePossibleDamage.realDamage)
 
 {
 
-    constexpr int margin = 16;
+    libc::sprintf(h3_TextBuffer, PluginText::GetInstance().GetCreatureAbilityCustomText(STACK_SETTING_DAMAGE_INPUT),
+                  attacker->info.GetCreatureName(attacker->numberAlive), finalPossibleDamage.realDamage,
+                  basePossibleDamage.realDamage);
+    constexpr int textHeight = 100;
+    constexpr int textY = 16;
+    userInfoText =
+        CreateText(16, textY, width - 32, textHeight, h3_TextBuffer, NH3Dlg::Text::MEDIUM, eTextColor::REGULAR, -1);
 
     constexpr int damageItemWidth = 100;
-    constexpr int damageItemHeight = 20;
+    constexpr int damageItemHeight = 19;
 
-    constexpr int editHeight = 20;
-    // const int editWidth = width - margin * 2;
-    const int editY = height - editHeight - 44;
+    constexpr int editY = textHeight + textY + 8;
+
     auto &inputField = userInputDamage;
 
+    const int editX = width / 2 - damageItemWidth / 2;
     libc::sprintf(h3_TextBuffer, "%d", resultBaseDamage);
-    inputField = CreateEdit(margin, editY, damageItemWidth, damageItemHeight, 13, h3_TextBuffer, NH3Dlg::Text::MEDIUM,
-                            1, 5, NH3Dlg::HDassets::HD_STATUSBAR_PCX, 0, 1);
+    inputField = CreateEdit(editX, editY, damageItemWidth, damageItemHeight, 11, h3_TextBuffer, NH3Dlg::Text::MEDIUM, 1,
+                            5, NH3Dlg::HDassets::HD_STATUSBAR_PCX, 0, 1);
     inputField->SetFocus();
     inputField->SetAutoredraw(true);
 
-    const int damageRowY = margin + editHeight + 4;
+    const int damageRowY = editY + damageItemHeight + 14;
     CreateDamageRow(basePossibleDamage, baseDamageRow, damageRowY);
     CreateDamageRow(finalPossibleDamage, finalDamageRow, damageRowY + damageItemHeight + 4);
 
@@ -362,8 +438,8 @@ void DamageInputDlg::CreateDamageRow(const PossibleDamage &possibleDamage, Damag
     const size_t size = std::size(damageRow.damageItems);
 
     constexpr int damageItemWidth = 100;
-    constexpr int damageItemHeight = 20;
-    constexpr int margin = 16;
+    constexpr int damageItemHeight = 19;
+    const int margin = this->widthDlg - 32 - size * (damageItemWidth + 4);
 
     for (size_t i = 0; i < size; i++)
     {
@@ -494,6 +570,10 @@ int __stdcall CreatureAttackRandom::BattleStack_CalculateDamageToMonster(HiHook 
     {
         damageResult = BattleStack_CalaculateFinalDamageFromBaseDamage(_this, targetCreature, inputBaseDamage, shoot,
                                                                        fireShieldDmg);
+        if (!instance->attackerActionData.isSecondAttack)
+        {
+            settings.TriggerAbility(STACK_SETTING_DAMAGE_INPUT);
+        }
     }
 
     // end of damage emulation, reset flag to let other hooks know that they should return to default behavior

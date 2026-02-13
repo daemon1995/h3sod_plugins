@@ -5,6 +5,8 @@ struct PluginText;
 class CombatSettingsManager : public IGamePatch
 {
 
+    static CombatSettingsManager *instance;
+
     enum eLogTargetType
     {
         LOG_TYPE_SCREEN,
@@ -41,7 +43,6 @@ class CombatSettingsManager : public IGamePatch
     BOOL cheaterFlagSet = false;
     H3String actionsUsedLog;
     PluginText *pluginText = nullptr;
-    static CombatSettingsManager *instance;
 
   private:
     CombatSettingsManager();
