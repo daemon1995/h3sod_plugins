@@ -272,7 +272,7 @@ void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3Comba
     }
     else
     {
-        skillLevel = creatureType == eCreature::CYCLOPS_KING + 1;
+        skillLevel = (creatureType == eCreature::CYCLOPS_KING) + 1;
     }
 
     GameBallisticsInfo storedInfo;

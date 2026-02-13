@@ -484,7 +484,6 @@ void __stdcall CombatSettingsManager::BattleMgr_StartBattle(HiHook *h, H3CombatM
     else
     {
         instance->combatIsStarted = true;
-        TestInitiate(instance);
     }
 }
 
