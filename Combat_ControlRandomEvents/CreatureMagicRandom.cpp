@@ -313,7 +313,7 @@ static _LHF_(BattleManager_BattleStack_GetResistanceRandom)
             c->edx = 1; // -> leads to Rand(1, 1) > [resistance_value]
             break;
         default:
-            break;
+            return EXEC_DEFAULT;
         }
         stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
     }
@@ -323,12 +323,12 @@ static _LHF_(BattleManager_BattleStack_GetResistanceRandom)
 static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
 {
     const auto &creature = *reinterpret_cast<H3CombatCreature **>(c->ebp + 0x14);
-    //   if (CombatSettingsManager::GetUserPoints())
+    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
+    auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
+    if (ability.triggerState != TRIGGER_STATE_DEFAULT)
     {
-        const auto &resistance =
-            CombatStackSettings::GetCombatStackSettings(creature)[eStackAbility::STACK_SETTING_MAGIC_RESISTANCE];
 
-        switch (resistance.triggerState)
+        switch (ability.triggerState)
         {
         case eTriggerState::TRIGGER_STATE_ALWAYS:
             c->edx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
@@ -339,7 +339,7 @@ static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
         default:
             return EXEC_DEFAULT;
         }
-        //      CombatSettingsManager::DecreaseUserPoints(1);
+        stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
     }
 
     return EXEC_DEFAULT;
@@ -347,12 +347,11 @@ static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
 static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
 {
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->esi);
-    //    if (CombatSettingsManager::GetUserPoints())
+    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
+    auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
+    if (ability.triggerState != TRIGGER_STATE_DEFAULT)
     {
-        const auto &resistance =
-            CombatStackSettings::GetCombatStackSettings(creature)[eStackAbility::STACK_SETTING_MAGIC_RESISTANCE];
-
-        switch (resistance.triggerState)
+        switch (ability.triggerState)
         {
         case eTriggerState::TRIGGER_STATE_ALWAYS:
             c->edx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
@@ -363,7 +362,7 @@ static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
         default:
             return EXEC_DEFAULT;
         }
-        //      CombatSettingsManager::DecreaseUserPoints(1);
+        stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
     }
 
     return EXEC_DEFAULT;
@@ -371,11 +370,11 @@ static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
 static _LHF_(BattleManager_BattleStack_GetAreaSpellResistanceRandom)
 {
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->edi);
-    //  if (CombatSettingsManager::GetUserPoints())
+    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
+    auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
+    if (ability.triggerState != TRIGGER_STATE_DEFAULT)
     {
-        const auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
-
-        switch (settings.resistance.triggerState)
+        switch (ability.triggerState)
         {
         case eTriggerState::TRIGGER_STATE_ALWAYS:
             c->ecx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
@@ -386,7 +385,7 @@ static _LHF_(BattleManager_BattleStack_GetAreaSpellResistanceRandom)
         default:
             return EXEC_DEFAULT;
         }
-        //    CombatSettingsManager::DecreaseUserPoints(1);
+        stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
     }
 
     return EXEC_DEFAULT;
