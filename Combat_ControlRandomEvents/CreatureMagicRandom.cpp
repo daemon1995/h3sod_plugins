@@ -292,7 +292,7 @@ static _LHF_(BattleStack_PhoenixResurrection)
     settings.TriggerAbility(abilityId);
 
     c->ebx += amountToResurrect;
-    c->return_address = 0x04690E2;
+    c->return_address = 0x04690DF;
     return NO_EXEC_DEFAULT;
 }
 
