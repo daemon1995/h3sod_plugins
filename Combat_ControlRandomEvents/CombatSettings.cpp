@@ -81,22 +81,20 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackAbility id) const
                (creatureType == eCreature::BALLISTA && owner &&
                 owner->secSkill[eSecondary::ARTILLERY]); // ballista's double damage
     case STACK_SETTING_WALL_ATTACK_AIM:
-        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 && creature->side == 0 && info.numberShots > 0 &&
+        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 && creature->side == 0 &&
                (creatureType != eCreature::CATAPULT ||
-                owner && owner->secSkill[eSecondary::BALLISTICS] > eSecSkillLevel::NONE); // attker side
-    case STACK_SETTING_WALL_ATTACK_NO_DAMAGE:
-        return creatureType == eCreature::CATAPULT && info.numberShots > 0 &&
-               (!owner || owner->secSkill[eSecondary::BALLISTICS] ==
-                              eSecSkillLevel::NONE); // info.destroyWalls && P_CombatManager->siegeKind2 > 0 &&
-                                                     // creature->side == 0;
-                                                     // // attker side
+                owner && owner->secSkill[eSecondary::BALLISTICS] > eSecSkillLevel::NONE); // attacker side
+    case STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE:
+        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 && creature->side == 0 &&
+               (creatureType != eCreature::CATAPULT ||
+                (!owner || owner->secSkill[eSecondary::BALLISTICS] < eSecSkillLevel::EXPERT));
     case STACK_SETTING_AFTER_ATTACK_ABILITY:
         return CreatureAttackRandom::BattleStack_HasAfterAttackAbility(creature);
     case STACK_SETTING_DAMAGE_VARIATION_FIRST:
     case STACK_SETTING_DAMAGE_INPUT:
         return info.damageLow < info.damageHigh;
     case STACK_SETTING_DAMAGE_VARIATION_SECOND:
-        return info.doubleAttack && info.damageLow < info.damageHigh && (!info.shooter || info.numberShots > 1);
+        return info.doubleAttack && info.damageLow < info.damageHigh;
 
     default:
         break;
@@ -165,7 +163,7 @@ eAbilityStateSwitchError CombatStackSettings::SwitchToNextAbilityState(const eSt
         }
         break;
     case STACK_SETTING_WALL_ATTACK_AIM:
-    case STACK_SETTING_WALL_ATTACK_NO_DAMAGE:
+    case STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE:
         if (currentState)
         {
             result.triggerState = TRIGGER_STATE_DEFAULT;

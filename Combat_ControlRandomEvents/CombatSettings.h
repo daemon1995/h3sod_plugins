@@ -41,7 +41,9 @@ struct CombatStackSettings
   public:
     inline void Reset()
     {
+        auto storedCreature = creature;
         *this = {};
+        creature = storedCreature;
     }
     inline const Ability &At(const eStackAbility id) const
     {

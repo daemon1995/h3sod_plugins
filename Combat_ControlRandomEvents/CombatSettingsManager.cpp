@@ -61,7 +61,7 @@ void CombatSettingsManager::ResetCombatSettings() noexcept
 
 void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mgr, H3Msg *msg)
 {
-    if (msg->IsKeyPress() && mgr->mouseCoord >= 0 && mgr->mouseCoord <= 186)
+    if (msg->IsKeyDown() && mgr->mouseCoord >= 0 && mgr->mouseCoord <= 186)
     {
         const H3CombatCreature *combatCreature = mgr->squares[mgr->mouseCoord].GetMonster();
         if (!combatCreature || combatCreature->type == eCreature::ARROW_TOWER)
@@ -177,9 +177,9 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                         }
                     }
                 }
-                else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_WALL_ATTACK_NO_DAMAGE))
+                else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE))
                 {
-                    stackSettingId = STACK_SETTING_WALL_ATTACK_NO_DAMAGE;
+                    stackSettingId = STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE;
                 }
                 else
                 {
@@ -510,6 +510,7 @@ void __stdcall CombatSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatMana
 
     if (instance->combatIsStarted)
     {
+
         //   TestInitiate(instance);
         // libc::sprintf(h3_TextBuffer, "Creature Settings Manager: New Round %d", _this->turn);
         // _this->AddStatusMessage(h3_TextBuffer);
@@ -533,6 +534,11 @@ void __stdcall CombatSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatMana
 void __stdcall CombatSettingsManager::BattleMgr_SetWinner(HiHook *h, H3CombatManager *_this, const INT side)
 {
     THISCALL_2(void, h->GetDefaultFunc(), _this, side);
+    if (instance->cheaterFlagSet)
+    {
+        P_Game->isCheater = true;
+    }
+
     instance->ResetCombatSettings();
 }
 

@@ -244,7 +244,7 @@ struct BallisticsInfo
 void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3CombatCreature *attacker,
                                                               const int targetHex)
 {
-
+    constexpr size_t DAMAGES_AMOUNT = 3;
     struct GameBallisticsInfo
     {
         struct BallisticsHitChances
@@ -255,9 +255,16 @@ void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3Comba
             char chanceToHitWall;
         } ballisticsHitChances;
         char shots;
-        char changeToDeal0Damage;
-        char changeToDeal1Damage;
-        char changeToDeal2Damage;
+
+        union {
+            struct
+            {
+                char chanceToDeal0Damage;
+                char chanceToDeal1Damage;
+                char chanceToDeal2Damage;
+            };
+            char dealDamageChances[DAMAGES_AMOUNT];
+        };
     };
 
     auto &currentSettings = CombatStackSettings::GetCombatStackSettings(attacker);
@@ -277,34 +284,44 @@ void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3Comba
 
     GameBallisticsInfo storedInfo;
 
-    BOOL noDamageEnabled =
-        currentSettings.At(STACK_SETTING_WALL_ATTACK_NO_DAMAGE).triggerState == TRIGGER_STATE_ENABLED;
+    BOOL minimalDamageEnabled =
+        currentSettings.At(STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE).triggerState == TRIGGER_STATE_ENABLED;
 
     BOOL aimShotEnabled = currentSettings.At(STACK_SETTING_WALL_ATTACK_AIM).triggerState == TRIGGER_STATE_ENABLED;
     //    ballisticsInfo.ballisticsSkillLevel = skillLevel;
 
-    if (noDamageEnabled || aimShotEnabled)
-
+    if (minimalDamageEnabled || aimShotEnabled)
     {
         gameBallisticsInfo = *reinterpret_cast<GameBallisticsInfo **>(0x0679C84);
         // store original hit chances to restore them after shot
         storedInfo = gameBallisticsInfo[skillLevel];
 
-        if (noDamageEnabled)
+        if (minimalDamageEnabled)
         {
-            gameBallisticsInfo[skillLevel].changeToDeal0Damage = 100;
-            gameBallisticsInfo[skillLevel].changeToDeal1Damage = 0;
-            gameBallisticsInfo[skillLevel].changeToDeal2Damage = 0;
-            currentSettings.TriggerAbility(STACK_SETTING_WALL_ATTACK_NO_DAMAGE);
+
+            int indexOfMinimalDamage = 0;
+            for (size_t i = 0; i < DAMAGES_AMOUNT; i++)
+            {
+                if (gameBallisticsInfo[skillLevel].dealDamageChances[i] > 0)
+                {
+                    indexOfMinimalDamage = i;
+                    break;
+                }
+            }
+
+            // set minimal damage chances to 100% and other chances to 0%
+            libc::memset(&gameBallisticsInfo[skillLevel].dealDamageChances, 0, DAMAGES_AMOUNT);
+            gameBallisticsInfo[skillLevel].dealDamageChances[indexOfMinimalDamage] = 100;
+            currentSettings.TriggerAbility(STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE);
         }
         else // if (aimShotEnabled)
         {
             // set 100% chance to hit any target;
             libc::memset(&gameBallisticsInfo[skillLevel].ballisticsHitChances, 100,
                          sizeof(gameBallisticsInfo[skillLevel].ballisticsHitChances));
-            gameBallisticsInfo[skillLevel].changeToDeal0Damage = 0;
-            gameBallisticsInfo[skillLevel].changeToDeal1Damage = 0;
-            gameBallisticsInfo[skillLevel].changeToDeal2Damage = 100;
+            // set maximal damage chances to 100% and other chances to 0%
+            libc::memset(&gameBallisticsInfo[skillLevel].dealDamageChances, 0, DAMAGES_AMOUNT);
+            gameBallisticsInfo[skillLevel].chanceToDeal2Damage = 100;
             currentSettings.TriggerAbility(STACK_SETTING_WALL_ATTACK_AIM);
         }
     }
@@ -316,8 +333,6 @@ void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3Comba
         // restore original hit chances
         gameBallisticsInfo[skillLevel] = storedInfo;
     }
-
-    // ballisticsInfo = {};
 }
 
 void __stdcall CreatureAttackRandom::BattleStack_AttackWall(HiHook *h, H3CombatCreature *attacker, const int wallId,

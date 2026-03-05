@@ -428,15 +428,14 @@ static void __stdcall BattleManager_Resurrection(HiHook *h, H3CombatManager *_th
 {
     if (creature && creature->numberAlive <= 0)
     {
-        CombatStackSettings::GetCombatStackSettings(creature) = {};
+        CombatStackSettings::GetCombatStackSettings(creature).Reset();
     }
     THISCALL_4(void, h->GetDefaultFunc(), _this, creature, resurrectionPowe, skillLevel);
 }
 
 static _LHF_(BattleManager_AddNewStackByPitLord)
 {
-    const auto &creature = reinterpret_cast<H3CombatCreature *>(c->esi);
-    CombatStackSettings::GetCombatStackSettings(creature) = {};
+    CombatStackSettings::GetCombatStackSettings(c->Esi<H3CombatCreature *>()).Reset();
     return EXEC_DEFAULT;
 }
 void CreatureMagicRandom::CreatePatches()
