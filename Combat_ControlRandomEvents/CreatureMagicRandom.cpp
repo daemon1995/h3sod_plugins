@@ -200,7 +200,6 @@ void __thiscall BattleMgr__CastSpell(_BattleMgr_ *bm, eSpell spell_id, signed in
 _DWORD pos2, int
 skillLevel, int spellPower)*/
 const CombatSideSettings *currentSideSettings = nullptr;
-double maxSideResistancePower[2] = {0.f, 0.f};
 
 static double BattleMgr_BattleSide_GetSpellAffectionRate(const int side, const eSpell spellId, const int casterKind)
 {
@@ -241,6 +240,7 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
                                           const int casterKind, const int pos2, const int skillLevel,
                                           const int spellPower)
 {
+    double maxSideResistancePower[2] = {0.f, 0.f};
 
     spellBreachingData.spellId = spellId;
     if (P_Spell[spellId].type != eSpellTarget::FRIENDLY)
@@ -250,11 +250,12 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
             if (CombatSideSettings::GetCombatSideSettings(i).unaffectedByResistance.triggerState ==
                 TRIGGER_STATE_ENABLED)
             {
-                maxSideResistancePower[i] = 1.f - BattleMgr_BattleSide_GetSpellAffectionRate(i, spellId, casterKind);
+                spellBreachingData.chanceToResist[i] =
+                    100 - static_cast<int>(BattleMgr_BattleSide_GetSpellAffectionRate(i, spellId, casterKind) *
+                                           static_cast<double>(100.f));
             }
-            // CombatSideSettings::GetCombatSideSettings(i).GetSideMaxResistance();
-            //   libc::sprintf(h3_TextBuffer, "side %d max resistance power: %f", i, maxSideResistancePower[i]);
-            //     CombatSettingsManager::WriteMessageToLog(h3_TextBuffer);
+            libc::sprintf(h3_TextBuffer, "side %d max resistance power: %d", i, spellBreachingData.chanceToResist[i]);
+            CombatSettingsManager::WriteMessageToLog(h3_TextBuffer);
         }
     }
     currentSideSettings = &CombatSideSettings::GetCombatSideSettings(1 - P_CombatManager->currentActiveSide);
@@ -269,10 +270,10 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
     spellBreachingData = {};
 
     currentSideSettings = nullptr;
-    for (size_t i = 0; i < 2; i++)
-    {
-        maxSideResistancePower[i] = 0.f; // CombatSideSettings::GetCombatSideSettings(i).GetSideMaxResistance();
-    }
+    // for (size_t i = 0; i < 2; i++)
+    //{
+    //     maxSideResistancePower[i] = 0.f; // CombatSideSettings::GetCombatSideSettings(i).GetSideMaxResistance();
+    // }
 }
 
 static _LHF_(BattleStack_PhoenixResurrection)
@@ -344,11 +345,39 @@ static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
 
     return EXEC_DEFAULT;
 }
+
+static BOOL CombatCreatureResistMightBeBreached(const H3CombatCreature *creature, const int spellAffectionRate)
+{
+    const int creatureResistanceChance = 100 - spellAffectionRate;
+
+    if (creatureResistanceChance > 0 && creatureResistanceChance <= 80)
+    {
+        const int side = creature->side;
+
+        if (spellBreachingData.chanceToResist[side])
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
 {
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->esi);
+
+    const int creatureResistanceChance = 100 - c->edi;
+
+
+    if (CombatCreatureResistMightBeBreached(creature, c->esi))
+    {
+        c->edx = 1;
+        return EXEC_DEFAULT;
+    }
+
     auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
     auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
+
     if (ability.triggerState != TRIGGER_STATE_DEFAULT)
     {
         switch (ability.triggerState)
@@ -469,9 +498,9 @@ void CreatureMagicRandom::CreatePatches()
     WriteLoHook(0x05A2100, BattleManager_BattleStack_GetBerserkResistanceRandom);
 
     // status spells mass casting
-    WriteLoHook(0x05A6A5C, BattleManager_BattleStack_GetStatusSpellResistanceRandom);
+    WriteLoHook(0x05A6A5C, BattleManager_BattleStack_GetStatusSpellResistanceRandom); // done
     // Armageddon spell casting
-    WriteLoHook(0x05A4F5A, BattleManager_BattleStack_GetStatusSpellResistanceRandom);
+    WriteLoHook(0x05A4F5A, BattleManager_BattleStack_GetStatusSpellResistanceRandom); // done
 
     // area spell casting
     WriteLoHook(0x05A4D80, BattleManager_BattleStack_GetAreaSpellResistanceRandom);

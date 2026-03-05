@@ -51,6 +51,16 @@ struct PluginText : IPluginText
     } stackSettingsText[AMOUNT_OF_STACK_SETTINGS], sideSettingsText[AMOUNT_OF_SIDE_SETTINGS],
         triggerStates[AMOUNT_OF_TRIGGER_STATES], damageStates[AMOUNT_OF_TRIGGER_STATES];
 
+    struct BattleResultText
+    {
+        std::string cheater;
+        std::string victory;
+        std::string defeat;
+        void LoadFromJson(const nlohmann::json& j);
+
+	} battleResultText;
+
+
   protected:
     void Load() override;
 

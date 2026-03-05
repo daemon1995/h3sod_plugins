@@ -1,5 +1,6 @@
 #include "framework.h"
 
+#include "PluginText.h"
 CombatSettingsManager *CombatSettingsManager::instance = nullptr;
 
 #define RANDOM_HANDLER_DECLARATION(className)                                                                          \
@@ -13,23 +14,24 @@ RANDOM_HANDLER_DECLARATION(CreatureTurnControlRandom)
 RANDOM_HANDLER_DECLARATION(CreatureAttackRandom)
 RANDOM_HANDLER_DECLARATION(CreatureMagicRandom)
 
-struct PluginText
-{
-    static PluginText &GetInstance();
-    LPCSTR GetCreatureAbilitySwitchText(const H3CombatCreature *creature, const eStackAbility settingId,
-                                        const Ability &changer,
-                                        const eAbilityStateSwitchError errorType) const noexcept;
-    LPCSTR GetSideAbilitySwitchText(const int side, const eSideAbility settingId, const Ability &changer,
-                                    const eAbilityStateSwitchError errorType) const noexcept;
-    LPCSTR GetAbilityTriggeredText(const CombatStackSettings *creatureSettings, const CombatSideSettings *sideSettings,
-                                   const int settingId, const int pointsUsed) const noexcept;
-    LPCSTR GetCreatureAbilitySwitchErrorText(const CombatStackSettings *creatureSettings, const int settingId,
-                                             const eAbilityStateSwitchError errorType) const noexcept;
-    LPCSTR GetSideAbilitySwitchErrorText(const CombatSideSettings *sideSettings, const int settingId,
-                                         const eAbilityStateSwitchError errorType) const noexcept;
-
-    LPCSTR GetSideAbilityCustomText(const eSideAbility settingId) const noexcept;
-};
+// struct PluginText
+//{
+//     static PluginText &GetInstance();
+//     LPCSTR GetCreatureAbilitySwitchText(const H3CombatCreature *creature, const eStackAbility settingId,
+//                                         const Ability &changer,
+//                                         const eAbilityStateSwitchError errorType) const noexcept;
+//     LPCSTR GetSideAbilitySwitchText(const int side, const eSideAbility settingId, const Ability &changer,
+//                                     const eAbilityStateSwitchError errorType) const noexcept;
+//     LPCSTR GetAbilityTriggeredText(const CombatStackSettings *creatureSettings, const CombatSideSettings
+//     *sideSettings,
+//                                    const int settingId, const int pointsUsed) const noexcept;
+//     LPCSTR GetCreatureAbilitySwitchErrorText(const CombatStackSettings *creatureSettings, const int settingId,
+//                                              const eAbilityStateSwitchError errorType) const noexcept;
+//     LPCSTR GetSideAbilitySwitchErrorText(const CombatSideSettings *sideSettings, const int settingId,
+//                                          const eAbilityStateSwitchError errorType) const noexcept;
+//
+//     LPCSTR GetSideAbilityCustomText(const eSideAbility settingId) const noexcept;
+// };
 struct SpellSelectionDlg
 {
     static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
@@ -52,6 +54,7 @@ void CombatSettingsManager::ResetCombatSettings() noexcept
     combatIsStarted = false;
     tacticsPhaseRound = false;
     cheaterFlagSet = false;
+	isCheaterBeforeCombat = false;
     userControlPoints = userMaxControlPoints;
     userControlPointsSpent = 0;
     userActionsUsed = 0;
@@ -457,22 +460,9 @@ void __stdcall CombatSettingsManager::BattleMgr_StartBattle(HiHook *h, H3CombatM
             endCombatPatch->Apply();
     }
 
-    // if player is not a cheater
-    //  if (!P_Game->isCheater)
-
-    CombatUniqueInfo combatUniqueInfo = {
-        _this->position, _this->mapitem, {_this->hero[0], _this->hero[1]}, P_Game->date.CurrentDay()};
-    if (instance->combatUniqueInfo != combatUniqueInfo)
-    {
-        instance->isCheaterBeforeCombat = P_Game->isCheater;
-        instance->combatUniqueInfo = combatUniqueInfo;
-    }
-    else
-    {
-        P_Game->isCheater = instance->isCheaterBeforeCombat;
-    }
 
     instance->ResetCombatSettings();
+    instance->isCheaterBeforeCombat = P_Game->isCheater;
 
     instance->tacticsPhaseRound = _this->tacticsPhase;
 
@@ -531,15 +521,18 @@ void __stdcall CombatSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatMana
     }
 }
 
-void __stdcall CombatSettingsManager::BattleMgr_SetWinner(HiHook *h, H3CombatManager *_this, const INT side)
+_LHF_(CombatSettingsManager::BattleResultDlg_OnOk)
 {
-    THISCALL_2(void, h->GetDefaultFunc(), _this, side);
-    if (instance->cheaterFlagSet)
+
+    if (!instance->isCheaterBeforeCombat && instance->cheaterFlagSet)
     {
         P_Game->isCheater = true;
-    }
 
+        H3Messagebox(instance->pluginText->battleResultText.cheater.c_str());
+    }
     instance->ResetCombatSettings();
+
+    return EXEC_DEFAULT;
 }
 
 void CombatSettingsManager::SetUserPoints(const int newSize) noexcept
@@ -560,7 +553,6 @@ BOOL CombatSettingsManager::DecreaseUserPoints(const int toDecrease) noexcept
     }
     if (!instance->isCheaterBeforeCombat && !instance->cheaterFlagSet && instance->userControlPoints < 0)
     {
-        P_Game->isCheater = true;
         instance->cheaterFlagSet = true;
 
         LPCSTR cheatMsg = P_GeneralText->GetText(262);
@@ -581,6 +573,6 @@ void CombatSettingsManager::CreatePatches()
         WriteHiHook(0x04746B0, THISCALL_, BattleMgr_ProcessAction_KeyPressed);
 
         newRoundPatch = WriteHiHook(0x0475800, THISCALL_, BattleMgr_NewRound);
-        endCombatPatch = WriteHiHook(0x0475CFD, THISCALL_, BattleMgr_SetWinner);
+        endCombatPatch = WriteLoHook(0x047174A, BattleResultDlg_OnOk);
     }
 }

@@ -35,7 +35,7 @@ class CombatSettingsManager : public IGamePatch
 
     BOOL combatIsStarted = false;
     BOOL tacticsPhaseRound = false;
-    INT userMaxControlPoints = 3;
+    INT userMaxControlPoints = 1;
     INT userControlPoints = 0;
     INT userControlPointsSpent = 0;
     INT userActionsUsed = 0;
@@ -62,7 +62,7 @@ class CombatSettingsManager : public IGamePatch
 
     static void __stdcall BattleMgr_NewRound(HiHook *h, H3CombatManager *_this);
     static void __stdcall BattleMgr_SetWinner(HiHook *h, H3CombatManager *_this, const INT side);
-
+    static _LHF_(BattleResultDlg_OnOk);
   public:
     static CombatSettingsManager &GetInstance();
 

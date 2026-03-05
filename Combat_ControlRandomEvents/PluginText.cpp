@@ -271,6 +271,7 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
     ReadJsonStringFieldToArray(j, "damage_states", damageKeys, damageStates, std::size(damageStates));
 
     hintBarText.LoadFromJson(j);
+	battleResultText.LoadFromJson(j);
     return true;
 }
 
@@ -323,4 +324,15 @@ void PluginText::HintBarText::LoadFromJson(const nlohmann::json &j)
         ReadJsonObjectToString(errorObj, "no_ability", combatAbilityError.noAbility);
         ReadJsonObjectToString(errorObj, "switch_blocked", combatAbilityError.switchBlocked);
     }
+}
+
+void PluginText::BattleResultText::LoadFromJson(const nlohmann::json &j)
+{
+    if (!j.contains("battle_result") || !j["battle_result"].is_object())
+        return;
+
+    const auto &battleResults = j["battle_result"];
+    ReadJsonObjectToString(battleResults, "cheater", cheater);
+    ReadJsonObjectToString(battleResults, "victory", victory);
+    ReadJsonObjectToString(battleResults, "defeat", defeat);
 }
