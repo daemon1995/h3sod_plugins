@@ -7,7 +7,7 @@ class CombatStackSettingsDlg : public H3Dlg
   protected:
     CombatStackSettings *viewedCretureSettings = nullptr;
     CombatStackSettings localCreatureSettings{};
-
+    
     BOOL settingsChanged = FALSE;
 
     // H3DlgText* dlgTitle = nullptr;
@@ -17,6 +17,8 @@ class CombatStackSettingsDlg : public H3Dlg
     {
         RECT position;
         INT groupBoxId;
+        eStackAbility settingId;
+
         H3DlgText *groupBoxText = nullptr;
         struct
         {
@@ -25,10 +27,9 @@ class CombatStackSettingsDlg : public H3Dlg
 
         } radioButtons[3];
 
-        eStackAbility settingId;
 
-        DlgRadioGroup(const RECT &pos, const int firstItemId, const eStackAbility settingId,
-                      const eTriggerState defaultState = TRIGGER_STATE_DEFAULT);
+        // DlgRadioGroup(const RECT &pos, const int firstItemId, const eStackAbility settingId,
+        //               const eTriggerState defaultState = TRIGGER_STATE_DEFAULT);
     };
 
     std::vector<DlgRadioGroup> radioGroups;
@@ -39,6 +40,7 @@ class CombatStackSettingsDlg : public H3Dlg
 
   protected:
     virtual BOOL DialogProc(H3Msg &msg) override;
+	virtual void OnOK() override;
 
   private:
     void CreateSettingsItems();

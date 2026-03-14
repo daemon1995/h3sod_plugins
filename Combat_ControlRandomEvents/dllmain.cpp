@@ -8,6 +8,15 @@
 #include "CreatureMagicRandom.h"
 #include "CreatureTurnControlRandom.h"
 
+#include "CombatSettingsManager.h"
+class CombatStackSettingsDlg : public H3Dlg
+{
+
+public:
+    static void __stdcall BattleMgr_ShowMonStatDlg(HiHook* hook, H3CombatManager* mgr, H3CombatCreature* creature,
+        BOOL isRightClick);
+};
+
 using namespace h3;
 
 Patcher *globalPatcher = nullptr;

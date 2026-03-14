@@ -195,6 +195,27 @@ static _LHF_(BattleStack_CastFaerieDragonSpell)
     return EXEC_DEFAULT;
 }
 
+static _LHF_(BattleStack_PhoenixResurrection)
+{
+    const auto *creature = reinterpret_cast<H3CombatCreature *>(c->esi);
+    auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
+
+    constexpr eStackAbility abilityId = STACK_SETTING_RESURRECTION;
+
+    if (settings[abilityId].resurrectionState == RESURRECTION_STATE_DEFAULT)
+    {
+        return EXEC_DEFAULT;
+    }
+
+    const int amountToResurrect = settings[abilityId].resurrectionState - 1;
+
+    settings.TriggerAbility(abilityId);
+
+    c->ebx += amountToResurrect;
+    c->return_address = 0x04690DF;
+    return NO_EXEC_DEFAULT;
+}
+
 /*
 void __thiscall BattleMgr__CastSpell(_BattleMgr_ *bm, eSpell spell_id, signed int pos, int casterKind,
 _DWORD pos2, int
@@ -230,7 +251,6 @@ static double BattleMgr_BattleSide_GetSpellAffectionRate(const int side, const e
 
 struct SpellBreachingData
 {
-
     eSpell spellId = eSpell::NONE;
     INT chanceToResist[2] = {0, 0};
     BOOL hasTriggered[2] = {false, false};
@@ -240,6 +260,7 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
                                           const int casterKind, const int pos2, const int skillLevel,
                                           const int spellPower)
 {
+
     double maxSideResistancePower[2] = {0.f, 0.f};
 
     spellBreachingData.spellId = spellId;
@@ -254,8 +275,9 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
                     100 - static_cast<int>(BattleMgr_BattleSide_GetSpellAffectionRate(i, spellId, casterKind) *
                                            static_cast<double>(100.f));
             }
-            libc::sprintf(h3_TextBuffer, "side %d max resistance power: %d", i, spellBreachingData.chanceToResist[i]);
-            CombatSettingsManager::WriteMessageToLog(h3_TextBuffer);
+            // libc::sprintf(h3_TextBuffer, "side %d max resistance power: %d", i,
+            // spellBreachingData.chanceToResist[i]);
+            // CombatSettingsManager::WriteMessageToLog(h3_TextBuffer);
         }
     }
     currentSideSettings = &CombatSideSettings::GetCombatSideSettings(1 - P_CombatManager->currentActiveSide);
@@ -270,80 +292,6 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
     spellBreachingData = {};
 
     currentSideSettings = nullptr;
-    // for (size_t i = 0; i < 2; i++)
-    //{
-    //     maxSideResistancePower[i] = 0.f; // CombatSideSettings::GetCombatSideSettings(i).GetSideMaxResistance();
-    // }
-}
-
-static _LHF_(BattleStack_PhoenixResurrection)
-{
-    const auto *creature = reinterpret_cast<H3CombatCreature *>(c->esi);
-    auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
-
-    constexpr eStackAbility abilityId = STACK_SETTING_RESURRECTION;
-
-    if (settings[abilityId].resurrectionState == RESURRECTION_STATE_DEFAULT)
-    {
-        return EXEC_DEFAULT;
-    }
-
-    const int amountToResurrect = settings[abilityId].resurrectionState - 1;
-
-    settings.TriggerAbility(abilityId);
-
-    c->ebx += amountToResurrect;
-    c->return_address = 0x04690DF;
-    return NO_EXEC_DEFAULT;
-}
-
-static _LHF_(BattleManager_BattleStack_GetResistanceRandom)
-{
-    const auto &creature = reinterpret_cast<H3CombatCreature *>(c->edi);
-    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
-    auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
-
-    if (ability.triggerState != TRIGGER_STATE_DEFAULT)
-    {
-        switch (ability.triggerState)
-        {
-        case TRIGGER_STATE_ALWAYS:
-            c->ecx = 100; // -> leads to Rand(100, 100) > [resistance_value]
-            break;
-        case TRIGGER_STATE_NEVER:
-            c->edx = 1; // -> leads to Rand(1, 1) > [resistance_value]
-            break;
-        default:
-            return EXEC_DEFAULT;
-        }
-        stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
-    }
-
-    return EXEC_DEFAULT;
-}
-static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
-{
-    const auto &creature = *reinterpret_cast<H3CombatCreature **>(c->ebp + 0x14);
-    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
-    auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
-    if (ability.triggerState != TRIGGER_STATE_DEFAULT)
-    {
-
-        switch (ability.triggerState)
-        {
-        case eTriggerState::TRIGGER_STATE_ALWAYS:
-            c->edx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
-            break;
-        case eTriggerState::TRIGGER_STATE_NEVER:
-            c->ecx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
-            break;
-        default:
-            return EXEC_DEFAULT;
-        }
-        stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
-    }
-
-    return EXEC_DEFAULT;
 }
 
 static BOOL CombatCreatureResistMightBeBreached(const H3CombatCreature *creature, const int spellAffectionRate)
@@ -362,60 +310,128 @@ static BOOL CombatCreatureResistMightBeBreached(const H3CombatCreature *creature
     return FALSE;
 }
 
-static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
+static _LHF_(BattleManager_BattleStack_GetResistanceRandom)
 {
-    const auto &creature = reinterpret_cast<H3CombatCreature *>(c->esi);
 
-    const int creatureResistanceChance = 100 - c->edi;
+    // check if spell has 100% affection rate, if so, resistance can't be breached, so skip all the logic and checks
+    const int spellAffectionRate = c->eax;
+    if (spellAffectionRate == 100)
+        return EXEC_DEFAULT;
 
-
-    if (CombatCreatureResistMightBeBreached(creature, c->esi))
+    // only these 2 spells breach resistance cause are massively casted spells
+    const auto &creature = reinterpret_cast<H3CombatCreature *>(c->edi);
+    const auto spellId = spellBreachingData.spellId;
+    if ((spellId == eSpell::DEATH_RIPPLE || spellId == eSpell::DESTROY_UNDEAD) &&
+        CombatCreatureResistMightBeBreached(creature, spellAffectionRate))
     {
         c->edx = 1;
         return EXEC_DEFAULT;
     }
 
     auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
-    auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
 
-    if (ability.triggerState != TRIGGER_STATE_DEFAULT)
+    switch (stackSettings[STACK_SETTING_MAGIC_RESISTANCE].triggerState)
     {
-        switch (ability.triggerState)
-        {
-        case eTriggerState::TRIGGER_STATE_ALWAYS:
-            c->edx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
-            break;
-        case eTriggerState::TRIGGER_STATE_NEVER:
-            c->ecx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
-            break;
-        default:
-            return EXEC_DEFAULT;
-        }
-        stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
+    case TRIGGER_STATE_ALWAYS:
+        c->ecx = 100; // -> leads to Rand(100, 100) > [resistance_value]
+        break;
+    case TRIGGER_STATE_NEVER:
+        c->edx = 1; // -> leads to Rand(1, 1) > [resistance_value]
+        break;
+    default:
+        return EXEC_DEFAULT;
     }
+    stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
 
     return EXEC_DEFAULT;
 }
+static _LHF_(BattleManager_BattleStack_GetBerserkResistanceRandom)
+{
+
+    // check if spell has 100% affection rate, if so, resistance can't be breached, so skip all the logic and checks
+    const int spellAffectionRate = c->eax;
+    if (spellAffectionRate == 100)
+        return EXEC_DEFAULT;
+
+    const auto &creature = *reinterpret_cast<H3CombatCreature **>(c->ebp + 0x14);
+    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
+
+    switch (stackSettings[STACK_SETTING_MAGIC_RESISTANCE].triggerState)
+    {
+    case eTriggerState::TRIGGER_STATE_ALWAYS:
+        c->edx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
+        break;
+    case eTriggerState::TRIGGER_STATE_NEVER:
+        c->ecx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
+        break;
+    default:
+        return EXEC_DEFAULT;
+    }
+    stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
+
+    return EXEC_DEFAULT;
+}
+
+static _LHF_(BattleManager_BattleStack_GetStatusSpellResistanceRandom)
+{
+    // check if spell has 100% affection rate, if so, resistance can't be breached, so skip all the logic and checks
+    const int spellAffectionRate = c->eax;
+    if (spellAffectionRate == 100)
+        return EXEC_DEFAULT;
+
+    const auto &creature = reinterpret_cast<H3CombatCreature *>(c->esi);
+    if (CombatCreatureResistMightBeBreached(creature, spellAffectionRate))
+    {
+        c->edx = 1;
+        return EXEC_DEFAULT;
+    }
+
+    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
+
+    switch (stackSettings[STACK_SETTING_MAGIC_RESISTANCE].triggerState)
+    {
+    case eTriggerState::TRIGGER_STATE_ALWAYS:
+        c->edx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
+        break;
+    case eTriggerState::TRIGGER_STATE_NEVER:
+        c->ecx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
+        break;
+    default:
+        return EXEC_DEFAULT;
+    }
+    stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
+
+    return EXEC_DEFAULT;
+}
+
 static _LHF_(BattleManager_BattleStack_GetAreaSpellResistanceRandom)
 {
+    // check if spell has 100% affection rate, if so, resistance can't be breached, so skip all the logic and checks
+    const int spellAffectionRate = c->eax;
+    if (spellAffectionRate == 100)
+        return EXEC_DEFAULT;
+
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->edi);
+
+    // if (CombatCreatureResistMightBeBreached(creature, spellAffectionRate))
+    //{
+    //     c->ecx = 1;
+    //     return EXEC_DEFAULT;
+    // }
+
     auto &stackSettings = CombatStackSettings::GetCombatStackSettings(creature); // ;
-    auto &ability = stackSettings[STACK_SETTING_MAGIC_RESISTANCE];
-    if (ability.triggerState != TRIGGER_STATE_DEFAULT)
+    switch (stackSettings[STACK_SETTING_MAGIC_RESISTANCE].triggerState)
     {
-        switch (ability.triggerState)
-        {
-        case eTriggerState::TRIGGER_STATE_ALWAYS:
-            c->ecx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
-            break;
-        case eTriggerState::TRIGGER_STATE_NEVER:
-            c->edx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
-            break;
-        default:
-            return EXEC_DEFAULT;
-        }
-        stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
+    case eTriggerState::TRIGGER_STATE_ALWAYS:
+        c->ecx = 1; // -> leads to Rand(1, 1) <= [resistance_value]
+        break;
+    case eTriggerState::TRIGGER_STATE_NEVER:
+        c->edx = 100; // -> leads to Rand(100, 100) <= [resistance_value]
+        break;
+    default:
+        return EXEC_DEFAULT;
     }
+    stackSettings.TriggerAbility(STACK_SETTING_MAGIC_RESISTANCE);
 
     return EXEC_DEFAULT;
 }
@@ -430,7 +446,6 @@ static _LHF_(BattleManager_BattleStack_MagicMirrorRandom)
 
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->ecx);
     auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
-    const auto abilityId = STACK_SETTING_MAGIC_MIRROR;
 
     switch (settings.magicMirror.triggerState)
     {
@@ -445,7 +460,7 @@ static _LHF_(BattleManager_BattleStack_MagicMirrorRandom)
     }
 
     // decreases points and reports usings
-    settings.TriggerAbility(abilityId);
+    settings.TriggerAbility(STACK_SETTING_MAGIC_MIRROR);
 
     c->return_address = 0x059F1F0;
     return NO_EXEC_DEFAULT;

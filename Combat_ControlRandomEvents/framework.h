@@ -10,5 +10,4 @@
 
 
 #include "CombatSettings.h"
-#include "CombatStackSettingsDlg.h"
 #include "CombatSettingsManager.h"

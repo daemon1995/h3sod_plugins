@@ -41,6 +41,11 @@ PluginText &PluginText::GetInstance()
     }
     return *instance;
 }
+LPCSTR PluginText::GetDlgText(const eStackAbility settingId, const H3CombatCreature *creature)
+{
+
+    return instance->stackSettingsText[settingId].name.c_str();
+}
 static LPCSTR GetCreatureName(const H3CombatCreature *creature)
 {
     return creature->info.GetCreatureName(creature->numberAlive);
@@ -271,7 +276,7 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
     ReadJsonStringFieldToArray(j, "damage_states", damageKeys, damageStates, std::size(damageStates));
 
     hintBarText.LoadFromJson(j);
-	battleResultText.LoadFromJson(j);
+    battleResultText.LoadFromJson(j);
     return true;
 }
 

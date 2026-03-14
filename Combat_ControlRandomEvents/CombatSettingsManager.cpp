@@ -1,6 +1,7 @@
 #include "framework.h"
 
 #include "PluginText.h"
+
 CombatSettingsManager *CombatSettingsManager::instance = nullptr;
 
 #define RANDOM_HANDLER_DECLARATION(className)                                                                          \
@@ -14,24 +15,6 @@ RANDOM_HANDLER_DECLARATION(CreatureTurnControlRandom)
 RANDOM_HANDLER_DECLARATION(CreatureAttackRandom)
 RANDOM_HANDLER_DECLARATION(CreatureMagicRandom)
 
-// struct PluginText
-//{
-//     static PluginText &GetInstance();
-//     LPCSTR GetCreatureAbilitySwitchText(const H3CombatCreature *creature, const eStackAbility settingId,
-//                                         const Ability &changer,
-//                                         const eAbilityStateSwitchError errorType) const noexcept;
-//     LPCSTR GetSideAbilitySwitchText(const int side, const eSideAbility settingId, const Ability &changer,
-//                                     const eAbilityStateSwitchError errorType) const noexcept;
-//     LPCSTR GetAbilityTriggeredText(const CombatStackSettings *creatureSettings, const CombatSideSettings
-//     *sideSettings,
-//                                    const int settingId, const int pointsUsed) const noexcept;
-//     LPCSTR GetCreatureAbilitySwitchErrorText(const CombatStackSettings *creatureSettings, const int settingId,
-//                                              const eAbilityStateSwitchError errorType) const noexcept;
-//     LPCSTR GetSideAbilitySwitchErrorText(const CombatSideSettings *sideSettings, const int settingId,
-//                                          const eAbilityStateSwitchError errorType) const noexcept;
-//
-//     LPCSTR GetSideAbilityCustomText(const eSideAbility settingId) const noexcept;
-// };
 struct SpellSelectionDlg
 {
     static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
@@ -54,7 +37,7 @@ void CombatSettingsManager::ResetCombatSettings() noexcept
     combatIsStarted = false;
     tacticsPhaseRound = false;
     cheaterFlagSet = false;
-	isCheaterBeforeCombat = false;
+    isCheaterBeforeCombat = false;
     userControlPoints = userMaxControlPoints;
     userControlPointsSpent = 0;
     userActionsUsed = 0;
@@ -459,7 +442,6 @@ void __stdcall CombatSettingsManager::BattleMgr_StartBattle(HiHook *h, H3CombatM
         if (!endCombatPatch->IsApplied())
             endCombatPatch->Apply();
     }
-
 
     instance->ResetCombatSettings();
     instance->isCheaterBeforeCombat = P_Game->isCheater;
