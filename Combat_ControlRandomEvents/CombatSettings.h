@@ -58,6 +58,7 @@ struct CombatStackSettings
     eAbilityStateSwitchError SwitchToNextAbilityState(const eStackAbility id, Ability &outState) const;
     Ability GetNextSpellStateToCast() const noexcept;
     Ability GetNextResurrectionState() const noexcept;
+    size_t GetAbilityStatesAmount(const eStackAbility id) const noexcept;
     BOOL TriggerAbility(const eStackAbility id, const BOOL dontSpendPoints = false);
 
   public:
@@ -67,6 +68,7 @@ struct CombatStackSettings
                                             const int max);
     static void ResetAll();
     static void HandleNewCombatRound();
+
     static inline CombatStackSettings &GetCombatStackSettings(const H3CombatCreature *creature) noexcept
     {
         return combatStackSettings[creature->side][creature->sideIndex];

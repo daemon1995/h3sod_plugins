@@ -56,10 +56,9 @@ struct PluginText : IPluginText
         std::string cheater;
         std::string victory;
         std::string defeat;
-        void LoadFromJson(const nlohmann::json& j);
+        void LoadFromJson(const nlohmann::json &j);
 
-	} battleResultText;
-
+    } battleResultText;
 
   protected:
     void Load() override;
@@ -67,16 +66,29 @@ struct PluginText : IPluginText
     BOOL LoadTextFromJsonFile(const std::string &fileName);
     void ReadJsonStringFieldToArray(const nlohmann::json &j, const std::string &baseKey, const LPCSTR *keys,
                                     BaseText *baseTextArray, const size_t arraySize);
+
+  public:
     LPCSTR GetStateText(const eStackAbility settingId, const Ability &changer) const noexcept;
 
   public:
     static PluginText &GetInstance();
     static LPCSTR GetDlgText(const eStackAbility settingId, const H3CombatCreature *creature);
-    LPCSTR GetCreatureAbilitySwitchText(const H3CombatCreature *creature, const eStackAbility settingId,
-                                        const Ability &changer,
-                                        const eAbilityStateSwitchError errorType) const noexcept;
-    LPCSTR GetSideAbilitySwitchText(const int side, const eSideAbility settingId, const Ability &changer,
-                                    const eAbilityStateSwitchError errorType) const noexcept;
+    static LPCSTR GetStackAbilityName(const eStackAbility settingId)
+    {
+        if (settingId < 0 || settingId >= AMOUNT_OF_STACK_SETTINGS)
+            return nullptr;
+        return GetInstance().stackSettingsText[settingId].name.c_str();
+    }
+    static LPCSTR GetStackAbilityStateName(const eStackAbility settingId, const eTriggerState state)
+    {
+        if (settingId < 0 || settingId >= AMOUNT_OF_STACK_SETTINGS)
+            return nullptr;
+        return GetInstance().stackSettingsText[settingId].name.c_str();
+    }
+
+    LPCSTR GetAbilitySwitchText(const CombatStackSettings *creatureSettings,
+                                const CombatSideSettings *sideSettingsconst, const int settingId,
+                                const Ability &changer) const noexcept;
 
     LPCSTR GetAbilityTriggeredText(const CombatStackSettings *creatureSettings, const CombatSideSettings *sideSettings,
                                    const int settingId, const int pointsUsed) const noexcept;

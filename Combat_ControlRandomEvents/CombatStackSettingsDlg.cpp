@@ -18,9 +18,9 @@ static DWORD GetAbilitiesBitMask(const CombatStackSettings *settings)
     return result;
 }
 
-CombatStackSettingsDlg::CombatStackSettingsDlg(const int x, const int y, const H3CombatCreature *creature,
+CombatStackSettingsDlg::CombatStackSettingsDlg(const int width, const int height, const H3CombatCreature *creature,
                                                const BOOL isRightClick)
-    : H3Dlg(400, 400, -1, -1, !isRightClick, true)
+    : H3Dlg(width, height) // , -1, -1, false, true)
 {
 
     viewedCretureSettings = &CombatStackSettings::GetCombatStackSettings(creature);
@@ -29,6 +29,7 @@ CombatStackSettingsDlg::CombatStackSettingsDlg(const int x, const int y, const H
     if (!isRightClick)
     {
         CreateOKButton();
+        CreateCancelButton();
     }
     CreateSettingsItems();
 }
@@ -58,6 +59,8 @@ void CombatStackSettingsDlg::CreateSettingsItems()
 
     const DWORD bitMask = GetAbilitiesBitMask(viewedCretureSettings);
 
+    auto settingsCopy = localCreatureSettings;
+
     size_t counter = 0;
     int startItemId = 1;
     for (size_t i = 0; i < eStackAbility::AMOUNT_OF_STACK_SETTINGS; i++)
@@ -65,16 +68,24 @@ void CombatStackSettingsDlg::CreateSettingsItems()
         // if ability exists
         if (bitMask & (1 << i))
         {
+            const eStackAbility abilityId = eStackAbility(i);
+
+            const size_t togglesAmount = localCreatureSettings.GetAbilityStatesAmount(abilityId);
+            if (togglesAmount < 2)
+                continue;
+
             constexpr INT groupBoxX = 25;
 
             constexpr INT groupBoxTextHeight = 20;
-            constexpr INT groupBoxButtonHeight = 20;
+            constexpr INT groupBoxButtonHeight = 24; // 32x24
             constexpr INT groupBoxHeight = groupBoxTextHeight + groupBoxButtonHeight;
             // constexpr INT groupBoxHeight = 40;
 
             const INT groupBoxWidth = this->widthDlg - groupBoxX * 2;
 
             DlgRadioGroup dlgRadioGroup;
+
+            dlgRadioGroup.settingId = abilityId;
 
             dlgRadioGroup.position.left = groupBoxX;
             dlgRadioGroup.position.top = counter * 25;
@@ -83,18 +94,42 @@ void CombatStackSettingsDlg::CreateSettingsItems()
             // counter * 25;
 
             const int textY = counter * groupBoxHeight;
-            LPCSTR abilityName = PluginText::GetDlgText(eStackAbility(i), localCreatureSettings.creature);
+            LPCSTR abilityName = PluginText::GetDlgText(abilityId, settingsCopy.creature);
             // const int itemId = startItemId + counter * 3;
             dlgRadioGroup.groupBoxText = CreateText(groupBoxX, textY, groupBoxWidth, groupBoxTextHeight, abilityName,
                                                     NH3Dlg::Text::MEDIUM, eTextColor::REGULAR, startItemId++);
 
-            dlgRadioGroup.settingId = eStackAbility(i);
-
             dlgRadioGroup.position.left = groupBoxX;
-            for (auto &radioButton : dlgRadioGroup.radioButtons)
+            int radioButtonX = groupBoxX;
+
+            auto &radioButtons = dlgRadioGroup.radioButtons;
+            radioButtons.resize(togglesAmount);
+
+            const int y = textY + 25;
+
+            const int togglesSpacing = 5;
+            const int toggleWidth = (groupBoxWidth - (togglesAmount - 1) * togglesSpacing) / togglesAmount;
+
+            Ability ability;
+
+            settingsCopy.asArray[abilityId] = ability;
+
+            for (size_t toggleIndex = 0; toggleIndex < togglesAmount; toggleIndex++)
             {
-                const int y = 30 + (counter * 25);
-                // radioButton.
+
+                auto &radioButton = radioButtons[toggleIndex];
+                const int toggleX = radioButtonX; // +toggleIndex * (toggleWidth + togglesSpacing);
+
+                radioButton.button = CreateOnOffCheckbox(toggleX, y, startItemId++, 0);
+
+                radioButton.text = CreateText(toggleX + 36, y, toggleWidth - 36, groupBoxButtonHeight,
+                                              PluginText::GetInstance().GetStateText(abilityId, ability),
+                                              NH3Dlg::Text::SMALL, eTextColor::REGULAR, startItemId++);
+
+                settingsCopy.SwitchToNextAbilityState(abilityId, ability);
+                settingsCopy.asArray[abilityId] = ability;
+                // ability.triggerState = static_cast<eTriggerState>(ability.triggerState + 1);
+                radioButtonX += toggleWidth + togglesSpacing;
             }
 
             dlgRadioGroup.groupBoxId = counter++;
@@ -106,10 +141,11 @@ void CombatStackSettingsDlg::CreateSettingsItems()
     // this->CreateOnOffCheckbox
 }
 
-BOOL CombatStackSettingsDlg::ShowSettingsDlg(H3CombatCreature *creature, const BOOL isRightClick)
+BOOL CombatStackSettingsDlg::ShowSettingsDlg(H3CombatCreature *creature, const size_t abilitiesAmount,
+                                             const BOOL isRightClick)
 {
 
-    CombatStackSettingsDlg dlg(-1, -1, creature, isRightClick);
+    CombatStackSettingsDlg dlg(400, 400, creature, isRightClick);
 
     isRightClick ? dlg.RMB_Show() : dlg.Start();
 
@@ -152,7 +188,7 @@ void __stdcall CombatStackSettingsDlg::BattleMgr_ShowMonStatDlg(HiHook *hook, H3
         if (abilitiesAmount)
         {
             CombatSettingsManager::WriteMessageToLog(std::to_string(abilitiesAmount).c_str());
-            CombatStackSettingsDlg::ShowSettingsDlg(creature, isRightClick);
+            CombatStackSettingsDlg::ShowSettingsDlg(creature, abilitiesAmount, isRightClick);
         }
     }
     else

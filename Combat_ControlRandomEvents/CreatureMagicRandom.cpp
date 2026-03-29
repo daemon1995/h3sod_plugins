@@ -1,8 +1,12 @@
+#include <unordered_set>
+
 #include "framework.h"
 
 #include "CreatureMagicRandom.h"
 
 CreatureMagicRandom *CreatureMagicRandom::instance = nullptr;
+CreaturePrioritySpells CreaturePrioritySpells::creaturePrioritySpells;
+
 CreatureMagicRandom::CreatureMagicRandom() : IGamePatch(globalPatcher->CreateInstance(instanceName))
 {
     CreatePatches();
@@ -12,15 +16,16 @@ static int GetCretureSpellPower(const H3CombatCreature *creature)
 {
     switch (creature->type)
     {
-    case eCreature::FAERIE_DRAGON:
-        return 5 * creature->numberAlive;
     case eCreature::MASTER_GENIE:
         return 6;
+    case eCreature::FAERIE_DRAGON:
+        return 5 * creature->numberAlive;
     case eCreature::ENCHANTER:
         return 3;
     default:
         return 0;
     }
+    return 0;
 }
 
 BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creature, std::vector<eSpell> &outList)
@@ -77,16 +82,6 @@ BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creatu
             }
         }
         break;
-    case eCreature::ENCHANTER:
-        spellDataArray = CreatureSpellData::GetEnchantersArray();
-        for (size_t i = 0; i < CreatureSpellData::ENCHANTERS_ARRAY_SIZE; i++)
-        {
-            const eSpell spellId = static_cast<eSpell>(spellDataArray[i].spellId);
-            if (P_Spell[spellId].level > maxSpellLevel)
-                continue;
-            outList.push_back(spellId);
-        }
-        break;
     case eCreature::FAERIE_DRAGON:
         spellDataArray = CreatureSpellData::GetFaerieDragonArray();
         for (size_t i = 0; i < CreatureSpellData::FAERIE_DRAGON_ARRAY_SIZE; i++)
@@ -98,6 +93,16 @@ BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creatu
 
             if (spellDataArray[i].chanceToCast > 0)
                 outList.push_back(spellId);
+        }
+        break;
+    case eCreature::ENCHANTER:
+        spellDataArray = CreatureSpellData::GetEnchantersArray();
+        for (size_t i = 0; i < CreatureSpellData::ENCHANTERS_ARRAY_SIZE; i++)
+        {
+            const eSpell spellId = static_cast<eSpell>(spellDataArray[i].spellId);
+            if (P_Spell[spellId].level > maxSpellLevel)
+                continue;
+            outList.push_back(spellId);
         }
         break;
     default:
@@ -200,7 +205,7 @@ static _LHF_(BattleStack_PhoenixResurrection)
     const auto *creature = reinterpret_cast<H3CombatCreature *>(c->esi);
     auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
 
-    constexpr eStackAbility abilityId = STACK_SETTING_RESURRECTION;
+    constexpr eStackAbility abilityId = STACK_SETTING_PHOENIX_RESURRECTION;
 
     if (settings[abilityId].resurrectionState == RESURRECTION_STATE_DEFAULT)
     {
@@ -531,6 +536,125 @@ void CreatureMagicRandom::CreatePatches()
 
     //   WriteHiHook(0x05A715F, THISCALL_, BattleManager_AddNewStackBySpell);
     //   WriteHiHook(0x05A7600, THISCALL_, BattleManager_AddNewStackBySpell);
+}
+
+BOOL CreaturePrioritySpells::LoadUserSettings(LPCSTR _nni)
+{
+
+    iniName = CombatSettingsManager::GetDirectory() + "\\" + CombatSettingsManager::GetFileNameNoExt() + ".ini";
+
+    LPCSTR ini = iniName.c_str();
+    settingsIni.Open(ini);
+    LoadSpecialist(masterGenie);
+    LoadSpecialist(faerieDragon);
+    LoadSpecialist(enchanter);
+
+    return 0;
+}
+static std::unordered_set<eSpell> GetUniqueSpells(const eCreature creature)
+{
+
+    std::unordered_set<eSpell> uniqueSpells;
+    switch (creature)
+    {
+    case eCreature::MASTER_GENIE:
+        for (size_t i = eSpell::QUICK_SAND; i < eSpell::STONE; i++)
+        {
+            if (P_Spell[i].friendlyMass)
+            {
+                uniqueSpells.insert(static_cast<eSpell>(i));
+            }
+        }
+        break;
+    case eCreature::FAERIE_DRAGON:
+        for (size_t i = 0; i < CreatureSpellData::FAERIE_DRAGON_ARRAY_SIZE; i++)
+        {
+            uniqueSpells.insert(static_cast<eSpell>(CreatureSpellData::GetFaerieDragonArray()[i].spellId));
+        }
+        break;
+    case eCreature::ENCHANTER:
+        for (size_t i = 0; i < CreatureSpellData::ENCHANTERS_ARRAY_SIZE; i++)
+        {
+            uniqueSpells.insert(static_cast<eSpell>(CreatureSpellData::GetEnchantersArray()[i].spellId));
+        }
+        break;
+    default:
+        break;
+    }
+    return uniqueSpells;
+}
+
+std::vector<eSpell> Deserialize(const std::string &str, const eCreature creature)
+{
+    std::vector<eSpell> result;
+    auto uniqueSpells = GetUniqueSpells(creature);
+
+    if (uniqueSpells.empty())
+        return result;
+
+    size_t start = 0;
+
+    while (start < str.size())
+    {
+        size_t end = str.find(',', start);
+
+        std::string token = str.substr(start, end == std::string::npos ? std::string::npos : end - start);
+
+        eSpell v = static_cast<eSpell>(std::stoi(token));
+        if (uniqueSpells.find(v) == uniqueSpells.end())
+        {
+            // invalid spell id, skip
+            start = end == std::string::npos ? std::string::npos : end + 1;
+            continue;
+        }
+        // защита от дублей
+        if (std::find(result.begin(), result.end(), v) == result.end())
+            result.push_back(v);
+
+        if (end == std::string::npos)
+            break;
+
+        start = end + 1;
+    }
+
+    return result;
+}
+
+static std::string Serialize(const std::vector<eSpell> &v)
+{
+    std::string s;
+    for (size_t i = 0; i < v.size(); ++i)
+    {
+        if (i)
+            s += ',';
+        s += std::to_string(v[i]);
+    }
+    return s;
+}
+void CreaturePrioritySpells::SaveSpecialist(const SpellLists &spellList)
+{
+
+    std::string s = Serialize(spellList.spells);
+    settingsIni.SetString(iniSection, std::to_string(spellList.creature).c_str(), s.c_str());
+}
+void CreaturePrioritySpells::LoadSpecialist(SpellLists &spellList)
+{
+
+    std::string iniStr =
+        settingsIni.GetString(iniSection, std::to_string(spellList.creature).c_str(), h3_NullString).String();
+
+    spellList.spells = Deserialize(iniStr, spellList.creature);
+}
+
+BOOL CreaturePrioritySpells::SaveUserSettings()
+{
+
+    SaveSpecialist(masterGenie);
+    SaveSpecialist(enchanter);
+    SaveSpecialist(faerieDragon);
+
+    LPCSTR ini = iniName.c_str();
+    return settingsIni.Save(ini, 1);
 }
 
 CreatureMagicRandom &CreatureMagicRandom::GetInstance()

@@ -68,41 +68,18 @@ class IGamePatch
         SetEnabled(false);
     }
 
-    // static IGamePatch * Get()  noexcept;
     virtual void CreatePatches() = 0;
 };
 
 class IPluginText
 {
-
-  private:
-    // static std::vector< IPluginText*> texts;
-
   public:
     IPluginText()
     {
-        // if (texts.empty())
-        {
-            // Era::RegisterHandler(OnAfterReloadLanguageData, "OnAfterReloadLanguageData");
-        }
-        // texts.emplace_back(this);
-        // Load();
     }
-
-  public:
-    // void __stdcall OnAfterReloadLanguageData(Era::TEvent* e)
-    // static void __stdcall OnAfterReloadLanguageData(Era::TEvent* e);
-    //{
-    //	//for (auto&text: texts)
-    //	{
-    //	//	text->Load();
-    //	}
-    // }
 
   public:
     virtual void Load() = 0;
 };
-
-// std::vector< IPluginText*>IPluginText::texts;
 
 #endif // !HEADER_H_

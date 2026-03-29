@@ -15,19 +15,58 @@ struct CreatureSpellData
     int chanceToCast;
 
   public:
-    static CreatureSpellData *GetEnchantersArray()
-    {
-        return *reinterpret_cast<CreatureSpellData **>(ENCHANTERS_ARRAY_PTR_ADDRESS);
-    }
     static CreatureSpellData *GetFaerieDragonArray()
     {
         return *reinterpret_cast<CreatureSpellData **>(FAERIE_DRAGON_ARRAY_PTR_ADDRESS);
     }
+    static CreatureSpellData *GetEnchantersArray()
+    {
+        return *reinterpret_cast<CreatureSpellData **>(ENCHANTERS_ARRAY_PTR_ADDRESS);
+    }
+
     static BOOL CreateAvailableSpellsList(const H3CombatCreature *creature, std::vector<eSpell> &outList);
 };
+
+struct CreaturePrioritySpells
+{
+    static constexpr LPCSTR iniPath = "plugin_settings.ini";
+    static constexpr LPCSTR iniSection = "prioritized_spells";
+    std::string iniName;
+
+    H3Ini settingsIni; // = nullptr;
+
+    struct SpellLists
+    {
+        eCreature creature = eCreature::UNDEFINED;
+        std::vector<eSpell> spells;
+    };
+    SpellLists masterGenie = {eCreature::MASTER_GENIE};
+    SpellLists faerieDragon = {eCreature::FAERIE_DRAGON};
+    SpellLists enchanter = {eCreature::ENCHANTER};
+
+    static CreaturePrioritySpells creaturePrioritySpells;
+
+  public:
+    CreaturePrioritySpells()
+    {
+        iniName = CombatSettingsManager::GetDirectory() + "\\" + CombatSettingsManager::GetFileNameNoExt() + ".ini";
+        this->LoadUserSettings();
+    }
+
+    ~CreaturePrioritySpells()
+    {
+    }
+    void SaveSpecialist(const SpellLists &spellList);
+    void LoadSpecialist(SpellLists &spellList);
+    BOOL LoadUserSettings(LPCSTR ini = 0);
+    BOOL SaveUserSettings();
+};
+
 class CreatureMagicRandom : IGamePatch
 {
     static constexpr LPCSTR instanceName = "SoDPlugin.CreatureAttackRandom.daemon_n";
+    // CreaturePrioritySpells creaturePrioritySpells;
+
     static CreatureMagicRandom *instance;
 
   private:
@@ -37,7 +76,6 @@ class CreatureMagicRandom : IGamePatch
   protected:
     virtual void CreatePatches() override;
 
-  private:
   public:
     static CreatureMagicRandom &GetInstance();
 };

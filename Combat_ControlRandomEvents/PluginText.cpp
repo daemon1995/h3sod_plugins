@@ -54,28 +54,43 @@ static LPCSTR GetSideName(const int side)
 {
     return P_GeneralText->GetText(410 + side);
 }
-LPCSTR PluginText::GetCreatureAbilitySwitchText(const H3CombatCreature *creature, const eStackAbility settingId,
-                                                const Ability &changer,
-                                                const eAbilityStateSwitchError errorType) const noexcept
+LPCSTR PluginText::GetAbilitySwitchText(const CombatStackSettings *creatureSettings,
+                                        const CombatSideSettings *sideSettings, const int settingId,
+                                        const Ability &changer) const noexcept
 {
+    if (!(creatureSettings || sideSettings))
+        return h3_NullString;
 
-    LPCSTR abilityName = stackSettingsText[settingId].name.c_str();
-    LPCSTR creatureName = GetCreatureName(creature);
+    const std::string *abilityName = nullptr, *textFormat = nullptr;
+    std::string triggerSource;
+    int abilityStateId = STACK_SETTING_POSITIVE_MORALE;
+    if (creatureSettings)
+    {
+        //%s/%s/%s
+        textFormat = &hintBarText.unitAbilitySwitched;
 
-    const auto &triggerStateName = GetStateText(settingId, changer);
-    libc::sprintf(h3_TextBuffer, hintBarText.unitAbilitySwitched.c_str(), creatureName, abilityName, triggerStateName);
+        abilityName = &stackSettingsText[settingId].name;
+        triggerSource = GetCreatureName(creatureSettings->creature);
+        abilityStateId = settingId;
+    }
+    else if (sideSettings)
+    {
+        //%s/%s/%s
+        textFormat = &hintBarText.sideAbilitySwitched;
+
+        abilityName = &sideSettingsText[settingId].name;
+        triggerSource = GetSideName(sideSettings->side);
+    }
+
+    if (!abilityName || !textFormat)
+        return h3_NullString;
+
+    libc::sprintf(h3_TextBuffer, textFormat->c_str(), triggerSource.c_str(), abilityName->c_str(),
+                  GetStateText(eStackAbility(abilityStateId), changer));
+
     return h3_TextBuffer;
 }
-LPCSTR PluginText::GetSideAbilitySwitchText(const int side, const eSideAbility settingId, const Ability &changer,
-                                            const eAbilityStateSwitchError errorType) const noexcept
-{
-    const auto &triggerStateName = GetStateText(STACK_SETTING_POSITIVE_MORALE, changer);
 
-    LPCSTR abilityName = sideSettingsText[settingId].name.c_str();
-    LPCSTR sideName = GetSideName(side);
-    libc::sprintf(h3_TextBuffer, hintBarText.unitAbilitySwitched.c_str(), sideName, abilityName, triggerStateName);
-    return h3_TextBuffer;
-}
 LPCSTR PluginText::GetAbilityTriggeredText(const CombatStackSettings *creatureSettings,
                                            const CombatSideSettings *sideSettings, const int settingId,
                                            const int pointsUsed) const noexcept
@@ -89,15 +104,17 @@ LPCSTR PluginText::GetAbilityTriggeredText(const CombatStackSettings *creatureSe
     if (creatureSettings)
     {
         //%s/%s/%d/%d/%d
-        abilityName = &stackSettingsText[settingId].name;
         textFormat = &hintBarText.unitAbilityTriggered;
+
+        abilityName = &stackSettingsText[settingId].name;
         triggerSource = GetCreatureName(creatureSettings->creature);
     }
     else if (sideSettings)
     {
         //%s/%s/%d/%d/%d
-        abilityName = &sideSettingsText[settingId].name;
         textFormat = &hintBarText.sideAbilityTriggered;
+
+        abilityName = &sideSettingsText[settingId].name;
         triggerSource = GetSideName(sideSettings->side);
     }
 
@@ -176,7 +193,7 @@ LPCSTR PluginText::GetStateText(const eStackAbility settingId, const Ability &ch
 {
     switch (settingId)
     {
-    case eStackAbility::STACK_SETTING_RESURRECTION:
+    case eStackAbility::STACK_SETTING_PHOENIX_RESURRECTION:
 
         if (changer.resurrectionState != RESURRECTION_STATE_DEFAULT)
         {
@@ -199,24 +216,6 @@ LPCSTR PluginText::GetStateText(const eStackAbility settingId, const Ability &ch
     }
 
     return triggerStates[changer.triggerState].name.c_str();
-}
-
-static std::string GetPluginDirectoryA()
-{
-    HMODULE hModule = nullptr;
-
-    GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                       reinterpret_cast<LPCSTR>(&GetPluginDirectoryA), &hModule);
-
-    char path[MAX_PATH]{};
-    GetModuleFileNameA(hModule, path, MAX_PATH);
-
-    // מבנוחאול טלÿ פאיכא
-    char *lastSlash = strrchr(path, '\\');
-    if (lastSlash)
-        *lastSlash = '\0';
-
-    return std::string(path);
 }
 
 void PluginText::ReadJsonStringFieldToArray(const nlohmann::json &j, const std::string &baseKey, const LPCSTR *keys,
@@ -256,7 +255,7 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
 
     static constexpr LPCSTR stackAbilityKeys[] = {
         "positive_morale",      "negative_morale",        "fear",
-        "spell_casting",        "resurrection",           "magic_resistance",
+        "spell_casting",        "phoenix_resurrection",   "magic_resistance",
         "magic_mirror",         "positive_luck",          "double_luck",
         "double_damage",        "wall_attack_aim",        "wall_attack_extended",
         "after_attack_ability", "damage_variation_first", "damage_variation_second",
@@ -291,7 +290,7 @@ void PluginText::Load()
         hdModLang = hdModLangPath.substr(pos + 1, 2);
     }
 
-    const auto &pluginDir = GetPluginDirectoryA();
+    const auto& pluginDir = CombatSettingsManager::GetDirectory();
 
     std::string jsonFilePath = pluginDir + "/lang/" + hdModLang + ".json";
     if (LoadTextFromJsonFile(jsonFilePath))

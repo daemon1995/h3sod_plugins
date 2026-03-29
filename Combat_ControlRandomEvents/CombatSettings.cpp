@@ -49,7 +49,7 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackAbility id) const
                (creatureType == eCreature::MASTER_GENIE || creatureType == eCreature::FAERIE_DRAGON) &&
                    creature->info.spellCharges > 0;
 
-    case STACK_SETTING_RESURRECTION:
+    case STACK_SETTING_PHOENIX_RESURRECTION:
         return creatureType == eCreature::PHOENIX && creature->info.spellCharges > 0 && creature->numberAtStart % 5;
     case STACK_SETTING_MAGIC_RESISTANCE:
         switch (creatureType)
@@ -145,7 +145,7 @@ eAbilityStateSwitchError CombatStackSettings::SwitchToNextAbilityState(const eSt
     case STACK_SETTING_SPELL_CASTING:
         result = GetNextSpellStateToCast();
         break;
-    case STACK_SETTING_RESURRECTION:
+    case STACK_SETTING_PHOENIX_RESURRECTION:
         result = GetNextResurrectionState();
         break;
         // bool on/off settings
@@ -404,6 +404,40 @@ void CombatStackSettings::HandleNewCombatRound()
             }
         }
     }
+}
+size_t CombatStackSettings::GetAbilityStatesAmount(const eStackAbility id) const noexcept
+{
+
+    const int remainder = creature->numberAtStart % 5;
+
+    switch (id)
+    {
+    case STACK_SETTING_PHOENIX_RESURRECTION:
+
+        switch (remainder)
+        {
+        case 0:
+            return 1; // only default state, can't be triggered
+        case 1:
+            return 3; // default, 0 from any, 1 from any
+        case 2:
+        case 3:
+            return 4; // default, 0 from any, 1 from any, and for 3 also 3 from 3 or 4
+        case 4:
+            return 5; // default, 0 from any, 1 from any, 3 from 3 or 4, and for 4 also 4 from 4
+        default:
+            break;
+        }
+        return 1; // only default state, can't be triggered
+    case STACK_SETTING_WALL_ATTACK_AIM:
+    case STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE:
+    case STACK_SETTING_DAMAGE_INPUT:
+        return 2;
+    default:
+        return AMOUNT_OF_TRIGGER_STATES;
+    }
+
+    return AMOUNT_OF_TRIGGER_STATES;
 }
 void CombatStackSettings::ResetAll()
 {

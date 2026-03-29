@@ -63,6 +63,7 @@ class CombatSettingsManager : public IGamePatch
     static void __stdcall BattleMgr_NewRound(HiHook *h, H3CombatManager *_this);
     static void __stdcall BattleMgr_SetWinner(HiHook *h, H3CombatManager *_this, const INT side);
     static _LHF_(BattleResultDlg_OnOk);
+
   public:
     static CombatSettingsManager &GetInstance();
 
@@ -74,6 +75,8 @@ class CombatSettingsManager : public IGamePatch
     {
         return instance->userMaxControlPoints;
     }
+    static const std::string GetDirectory() noexcept;
+    static const std::string GetFileNameNoExt() noexcept;
     static void SetUserPoints(const int newSize) noexcept;
     static BOOL DecreaseUserPoints(const int toDecrease) noexcept;
     static void WriteMessageToLog(LPCSTR msg, const eLogTargetType logType = LOG_TYPE_SCREEN);

@@ -1,3 +1,5 @@
+#include <filesystem>
+
 #include "framework.h"
 
 #include "PluginText.h"
@@ -20,6 +22,22 @@ struct SpellSelectionDlg
     static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
 };
 
+static const std::string& GetFullPath() noexcept
+{
+    static const std::string path = [] {
+        HMODULE hModule = nullptr;
+
+        ::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCSTR>(&GetFullPath), &hModule);
+
+        char buffer[MAX_PATH]{};
+        ::GetModuleFileNameA(hModule, buffer, MAX_PATH);
+
+        return std::string(buffer);
+    }();
+
+    return path;
+}
 CombatSettingsManager::CombatSettingsManager() : IGamePatch(_PI)
 {
     // Initialize all creature settings to default
@@ -182,9 +200,9 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                 {
                     stackSettingId = STACK_SETTING_SPELL_CASTING;
                 }
-                else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_RESURRECTION))
+                else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_PHOENIX_RESURRECTION))
                 {
-                    stackSettingId = STACK_SETTING_RESURRECTION;
+                    stackSettingId = STACK_SETTING_PHOENIX_RESURRECTION;
                 }
                 else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_WALL_ATTACK_AIM))
                 {
@@ -258,9 +276,7 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
         // copy current setting to modify
 
         if (stackSettingId == STACK_SETTING_NONE && sideSettingId == SIDE_SETTING_NONE)
-        {
             return;
-        }
 
         Ability nextAbilityState;
 
@@ -283,29 +299,22 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
             return;
         }
 
-        std::string resultHint;
-
+        int settingId = stackSettingId;
         if (stackSettingId != STACK_SETTING_NONE)
         {
-            resultHint =
-                pluginText->GetCreatureAbilitySwitchText(combatCreature, stackSettingId, nextAbilityState, errorType);
-
             CombatStackSettings::SetCreatureAbilityState(combatCreature, stackSettingId, nextAbilityState);
 
             if (stackSettingId == STACK_SETTING_SPELL_CASTING && combatCreature->type == eCreature::FAERIE_DRAGON)
-            {
                 const_cast<H3CombatCreature *>(combatCreature)->faerieDragonSpell = nextAbilityState.spellToCast;
-            }
         }
-        else if (sideSettingId != SIDE_SETTING_NONE)
+        else
         {
-            resultHint =
-                pluginText->GetSideAbilitySwitchText(combatCreature->side, sideSettingId, nextAbilityState, errorType);
-            if (!resultHint.empty())
-            {
-                CombatSideSettings::SetSideAbilityState(combatCreature, sideSettingId, nextAbilityState);
-            }
+            settingId = sideSettingId;
+            CombatSideSettings::SetSideAbilityState(combatCreature, sideSettingId, nextAbilityState);
         }
+
+        std::string resultHint =
+            pluginText->GetAbilitySwitchText(combatStackSettings, combatSideSettings, settingId, nextAbilityState);
         if (!resultHint.empty())
         {
             WriteMessageToLog(resultHint.c_str(), eLogTargetType::LOG_TYPE_SCREEN);
@@ -356,8 +365,6 @@ CombatSettingsManager &CombatSettingsManager::GetInstance()
 {
     if (!instance)
         instance = new CombatSettingsManager();
-    else
-        instance = {};
     return *instance;
 }
 
@@ -388,7 +395,8 @@ static void TestInitiate(CombatSettingsManager *instance)
         const auto &defenderStack = &P_CombatManager->stacks[1][i];
         //  instance->SetCreatureAbilityState(defenderStack, STACK_SETTING_NEGATIVE_MORALE,
         //  tempAttackerAbility);
-        CombatStackSettings::SetCreatureAbilityState(defenderStack, STACK_SETTING_RESURRECTION, tempAttackerAbility);
+        CombatStackSettings::SetCreatureAbilityState(defenderStack, STACK_SETTING_PHOENIX_RESURRECTION,
+                                                     tempAttackerAbility);
 
         //  instance->SetCombatStackSettings(0, i, tempAttacker);
         //  instance->SetCombatStackSettings(1, i, tempDefender);
@@ -501,6 +509,17 @@ void __stdcall CombatSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatMana
     {
         instance->combatIsStarted = true;
     }
+}
+
+
+
+const std::string CombatSettingsManager::GetDirectory() noexcept
+{
+    return std::experimental::filesystem::path(GetFullPath()).parent_path().string();
+}
+const std::string CombatSettingsManager::GetFileNameNoExt() noexcept
+{
+    return std::experimental::filesystem::path(GetFullPath()).stem().string();
 }
 
 _LHF_(CombatSettingsManager::BattleResultDlg_OnOk)
