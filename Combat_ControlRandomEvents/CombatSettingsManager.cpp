@@ -17,18 +17,20 @@ RANDOM_HANDLER_DECLARATION(CreatureTurnControlRandom)
 RANDOM_HANDLER_DECLARATION(CreatureAttackRandom)
 RANDOM_HANDLER_DECLARATION(CreatureMagicRandom)
 
+extern BOOL SaveCreaturePrioritySpells();
+
 struct SpellSelectionDlg
 {
     static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
 };
 
-static const std::string& GetFullPath() noexcept
+static const std::string &GetFullPath() noexcept
 {
     static const std::string path = [] {
         HMODULE hModule = nullptr;
 
         ::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-            reinterpret_cast<LPCSTR>(&GetFullPath), &hModule);
+                             reinterpret_cast<LPCSTR>(&GetFullPath), &hModule);
 
         char buffer[MAX_PATH]{};
         ::GetModuleFileNameA(hModule, buffer, MAX_PATH);
@@ -38,6 +40,7 @@ static const std::string& GetFullPath() noexcept
 
     return path;
 }
+
 CombatSettingsManager::CombatSettingsManager() : IGamePatch(_PI)
 {
     // Initialize all creature settings to default
@@ -511,8 +514,6 @@ void __stdcall CombatSettingsManager::BattleMgr_NewRound(HiHook *h, H3CombatMana
     }
 }
 
-
-
 const std::string CombatSettingsManager::GetDirectory() noexcept
 {
     return std::experimental::filesystem::path(GetFullPath()).parent_path().string();
@@ -531,6 +532,8 @@ _LHF_(CombatSettingsManager::BattleResultDlg_OnOk)
 
         H3Messagebox(instance->pluginText->battleResultText.cheater.c_str());
     }
+    SaveCreaturePrioritySpells();
+
     instance->ResetCombatSettings();
 
     return EXEC_DEFAULT;

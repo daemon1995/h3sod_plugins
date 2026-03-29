@@ -28,6 +28,30 @@ static int GetCretureSpellPower(const H3CombatCreature *creature)
     return 0;
 }
 
+std::vector<eSpell> Reorder(const std::vector<eSpell> &available, const std::vector<eSpell> &priority)
+{
+    std::vector<eSpell> result;
+    result.reserve(available.size());
+
+    // check if exists
+    std::unordered_set<eSpell> used(priority.begin(), priority.end());
+    // 1. prioritized
+    for (eSpell v : priority)
+    {
+        if (std::find(available.begin(), available.end(), v) != available.end())
+            result.push_back(v);
+    }
+
+    // 2. all another
+    for (eSpell v : available)
+    {
+        if (!used.count(v))
+            result.push_back(v);
+    }
+
+    return result;
+}
+
 BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creature, std::vector<eSpell> &outList)
 {
     // check max spell level allowed due to terrain and artifacts
@@ -53,10 +77,13 @@ BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creatu
     outList.clear();
     outList.reserve(h3::limits::SPELLS);
     const CreatureSpellData *spellDataArray = nullptr;
-
+    std::vector<eSpell> *prioritySpells = nullptr;
+    CreaturePrioritySpells &creaturePrioritySpells = CreaturePrioritySpells::creaturePrioritySpells;
     switch (creature->type)
     {
     case eCreature::MASTER_GENIE:
+        prioritySpells = &creaturePrioritySpells.masterGenie.spells;
+
         for (size_t i = eSpell::QUICK_SAND; i < eSpell::STONE; i++)
         {
             if (P_Spell[i].level > maxSpellLevel)
@@ -81,8 +108,11 @@ BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creatu
                 outList.push_back(static_cast<eSpell>(i));
             }
         }
+
         break;
     case eCreature::FAERIE_DRAGON:
+        prioritySpells = &creaturePrioritySpells.faerieDragon.spells;
+
         spellDataArray = CreatureSpellData::GetFaerieDragonArray();
         for (size_t i = 0; i < CreatureSpellData::FAERIE_DRAGON_ARRAY_SIZE; i++)
         {
@@ -96,6 +126,8 @@ BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creatu
         }
         break;
     case eCreature::ENCHANTER:
+        prioritySpells = &creaturePrioritySpells.enchanter.spells;
+
         spellDataArray = CreatureSpellData::GetEnchantersArray();
         for (size_t i = 0; i < CreatureSpellData::ENCHANTERS_ARRAY_SIZE; i++)
         {
@@ -109,6 +141,10 @@ BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creatu
         return FALSE;
     }
 
+    if (prioritySpells && prioritySpells->size())
+    {
+    }
+    outList = Reorder(outList, *prioritySpells);
     outList.shrink_to_fit();
 
     return !outList.empty();
@@ -131,13 +167,13 @@ static void __stdcall BattleStack_CastGenieSpell(HiHook *h, H3CombatCreature *cr
     // cause original function is too complex to patch in parts
 
     const eSpell setSpellByUser = GetUserSelectedSpell(creature);
-
     if (setSpellByUser != eSpell::NONE)
     {
         const auto &targetStack = P_CombatManager->squares[pos].GetMonster();
         if (targetStack->CanReceiveSpell(setSpellByUser))
         {
             CombatStackSettings::GetCombatStackSettings(creature).TriggerAbility(STACK_SETTING_SPELL_CASTING);
+            CreaturePrioritySpells::creaturePrioritySpells.masterGenie.UseSpell(setSpellByUser);
             const int spellPower = GetCretureSpellPower(creature);
             P_CombatManager->CastSpell(setSpellByUser, pos, 1, -1, eSecSkillLevel::ADVANCED, spellPower);
             return;
@@ -164,6 +200,7 @@ static char __stdcall BattleStack_EnchanterCastsMassSpell(HiHook *h, H3CombatCre
 
         // call pseudo original function to check if spell can be cast
         char ret = creature->UseEnchanters();
+        CreaturePrioritySpells::creaturePrioritySpells.enchanter.UseSpell(setSpellByUser);
         data[0] = storedData;
         // if spell can be cast, decrease user points and return success
         if (ret)
@@ -193,6 +230,7 @@ static _LHF_(BattleStack_CastFaerieDragonSpell)
     const eSpell setSpellByUser = GetUserSelectedSpell(creature);
     if (setSpellByUser != eSpell::NONE)
     {
+        CreaturePrioritySpells::creaturePrioritySpells.faerieDragon.UseSpell(setSpellByUser);
         CombatStackSettings::GetCombatStackSettings(creature).TriggerAbility(STACK_SETTING_SPELL_CASTING);
         creature->faerieDragonSpell = setSpellByUser;
     }
@@ -221,23 +259,13 @@ static _LHF_(BattleStack_PhoenixResurrection)
     return NO_EXEC_DEFAULT;
 }
 
-/*
-void __thiscall BattleMgr__CastSpell(_BattleMgr_ *bm, eSpell spell_id, signed int pos, int casterKind,
-_DWORD pos2, int
-skillLevel, int spellPower)*/
-const CombatSideSettings *currentSideSettings = nullptr;
-
 static double BattleMgr_BattleSide_GetSpellAffectionRate(const int side, const eSpell spellId, const int casterKind)
 {
+    double result = 1.f;
 
     const auto &mgr = P_CombatManager->Get();
     auto &stacks = mgr->stacks[side];
 
-    double result = 1.f;
-
-    const auto &hero = mgr->hero[side];
-
-    // float heroResistance = hero ? hero->GetResistancePower() : 0.f;
     for (auto &stack : stacks)
     {
         if (stack.numberAlive < 1 || stack.activeSpellDuration[eSpell::HYPNOTIZE])
@@ -265,9 +293,7 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
                                           const int casterKind, const int pos2, const int skillLevel,
                                           const int spellPower)
 {
-
     double maxSideResistancePower[2] = {0.f, 0.f};
-
     spellBreachingData.spellId = spellId;
     if (P_Spell[spellId].type != eSpellTarget::FRIENDLY)
     {
@@ -280,12 +306,8 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
                     100 - static_cast<int>(BattleMgr_BattleSide_GetSpellAffectionRate(i, spellId, casterKind) *
                                            static_cast<double>(100.f));
             }
-            // libc::sprintf(h3_TextBuffer, "side %d max resistance power: %d", i,
-            // spellBreachingData.chanceToResist[i]);
-            // CombatSettingsManager::WriteMessageToLog(h3_TextBuffer);
         }
     }
-    currentSideSettings = &CombatSideSettings::GetCombatSideSettings(1 - P_CombatManager->currentActiveSide);
 
     THISCALL_7(void, h->GetDefaultFunc(), _this, spellId, pos, casterKind, pos2, skillLevel, spellPower);
     for (size_t i = 0; i < 2; i++)
@@ -295,8 +317,6 @@ static void __stdcall BattleMgr_CastSpell(HiHook *h, H3CombatManager *_this, con
     }
 
     spellBreachingData = {};
-
-    currentSideSettings = nullptr;
 }
 
 static BOOL CombatCreatureResistMightBeBreached(const H3CombatCreature *creature, const int spellAffectionRate)
@@ -622,7 +642,7 @@ std::vector<eSpell> Deserialize(const std::string &str, const eCreature creature
 
 static std::string Serialize(const std::vector<eSpell> &v)
 {
-    std::string s;
+    std::string s = " ";
     for (size_t i = 0; i < v.size(); ++i)
     {
         if (i)
@@ -635,15 +655,23 @@ void CreaturePrioritySpells::SaveSpecialist(const SpellLists &spellList)
 {
 
     std::string s = Serialize(spellList.spells);
-    settingsIni.SetString(iniSection, std::to_string(spellList.creature).c_str(), s.c_str());
+    auto &section = settingsIni.Get(iniSection);
+
+    auto &line = section->Get(std::to_string(spellList.creature).c_str());
+
+    H3String strr = s.c_str();
+    line->SetString(strr);
 }
 void CreaturePrioritySpells::LoadSpecialist(SpellLists &spellList)
 {
-
-    std::string iniStr =
-        settingsIni.GetString(iniSection, std::to_string(spellList.creature).c_str(), h3_NullString).String();
-
+    auto &section = settingsIni.Get(iniSection);
+    std::string iniStr = section->GetString(std::to_string(spellList.creature).c_str(), h3_NullString).String();
     spellList.spells = Deserialize(iniStr, spellList.creature);
+}
+
+BOOL SaveCreaturePrioritySpells()
+{
+    return CreaturePrioritySpells::creaturePrioritySpells.SaveUserSettings();
 }
 
 BOOL CreaturePrioritySpells::SaveUserSettings()
@@ -654,7 +682,7 @@ BOOL CreaturePrioritySpells::SaveUserSettings()
     SaveSpecialist(faerieDragon);
 
     LPCSTR ini = iniName.c_str();
-    return settingsIni.Save(ini, 1);
+    return settingsIni.Save(ini, 0);
 }
 
 CreatureMagicRandom &CreatureMagicRandom::GetInstance()

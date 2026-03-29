@@ -39,6 +39,17 @@ struct CreaturePrioritySpells
     {
         eCreature creature = eCreature::UNDEFINED;
         std::vector<eSpell> spells;
+
+        void UseSpell(const eSpell spell)
+        {
+            // убираем если уже есть
+            auto it = std::find(spells.begin(), spells.end(), spell);
+            if (it != spells.end())
+                spells.erase(it);
+
+            // вставляем в начало
+            spells.insert(spells.begin(), spell);
+        }
     };
     SpellLists masterGenie = {eCreature::MASTER_GENIE};
     SpellLists faerieDragon = {eCreature::FAERIE_DRAGON};

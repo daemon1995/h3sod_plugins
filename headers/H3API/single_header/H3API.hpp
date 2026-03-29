@@ -22841,7 +22841,7 @@ namespace h3
 			SEARCHED = 8,
 			ALL      = EMPTY | COMMENT | SECTION | KEY,
 		};
-	private:
+	public:
 		UINT     m_type;
 		H3String m_content;
 		H3String m_value;
@@ -23113,7 +23113,7 @@ namespace h3
 		 */
 		_H3API_ UINT     GetHex(LPCSTR key, UINT default_value);
 
-	private:
+	public:
 		const H3String*      m_name;
 		H3Vector<H3IniLine*> m_keys;
 		BOOL                 m_searched;
@@ -36923,7 +36923,10 @@ namespace h3
 				H3IniLine** line = m_keys.begin() + mid;
 				INT comp = (*line)->m_content.Compare(key);
 				if (comp == 0)
+				{
+					(*line)->m_type |= H3IniLine::LineType::SEARCHED;
 					return iterator(line);
+				}
 				if (comp < 0)
 					right = mid - 1;
 				else
@@ -36934,8 +36937,8 @@ namespace h3
 		{
 			for (iterator it = begin(); it != end(); it++)
 			{
-				if (it->m_type & H3IniLine::LineType::SEARCHED)
-					continue;
+			//	if (it->m_type & H3IniLine::LineType::SEARCHED)
+			//		return it;
 				if (it->m_content.Compare(key) == 0)
 				{
 					it->m_type |= H3IniLine::LineType::SEARCHED;
@@ -36943,6 +36946,7 @@ namespace h3
 				}
 			}
 		}
+
 		return end();
 	}
 
@@ -37225,7 +37229,7 @@ namespace h3
 		for (H3IniSection* it = m_sections.begin(); it != m_sections.end() - 1; ++it)
 		{
 			if (it->m_searched)
-				continue;
+				return iterator(it);
 			if (it->m_name->Compare(section) == 0)
 			{
 				it->m_searched = TRUE;
