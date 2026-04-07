@@ -73,9 +73,19 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
         const H3CombatCreature *combatCreature = mgr->squares[mgr->mouseCoord].GetMonster();
         if (!combatCreature || combatCreature->type == eCreature::ARROW_TOWER)
             return;
+        const bool altPressed = msg->IsAltPressed(); // STDCALL_1(SHORT, PtrAt(0x63A294), VK_MENU) & 0x800;
+        if (altPressed)
+            return;
+        const bool shiftPressed = msg->IsShiftPressed(); //  STDCALL_1(SHORT, PtrAt(0x63A294), VK_SHIFT) & 0x800;
+        const bool ctrlPressed = msg->IsCtrlPressed();   //  STDCALL_1(SHORT, PtrAt(0x63A294), VK_CONTROL) & 0x800;
+        const bool noModifier = msg->flags == eMsgFlag::NONE;
+        if (!ctrlPressed && !shiftPressed && !noModifier)
+            return;
 
         const CombatStackSettings *combatStackSettings = &CombatStackSettings::GetCombatStackSettings(combatCreature);
         const CombatSideSettings *combatSideSettings = &CombatSideSettings::GetCombatSideSettings(combatCreature);
+
+        auto currentActiveCreature = mgr->activeStack; // &mgr->stacks[mgr->currentActiveSide][mgr->currentMonIndex];
 
         BOOL saveToLog = TRUE;
         BOOL affectedAllUnits = FALSE;
@@ -83,9 +93,6 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
         LPCSTR resultText = nullptr;
         eStackAbility stackSettingId = STACK_SETTING_NONE;
         eSideAbility sideSettingId = SIDE_SETTING_NONE;
-
-        const bool shiftPressed = STDCALL_1(SHORT, PtrAt(0x63A294), VK_SHIFT) & 0x800;
-        const bool ctrlPressed = STDCALL_1(SHORT, PtrAt(0x63A294), VK_CONTROL) & 0x800;
 
         float resultValue = 0.0f;
         std::string debugString;
@@ -96,7 +103,12 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
             if (shiftPressed)
             {
 
-                resultValue = combatSideSettings->GetSideMaxResistance();
+                libc::sprintf(h3_TextBuffer, "stack ptr  = %d/%d", combatCreature, combatStackSettings->creature);
+
+                WriteMessageToLog(h3_TextBuffer, eLogTargetType::LOG_TYPE_SCREEN);
+            }
+            if (currentActiveCreature == combatCreature)
+            {
                 libc::sprintf(h3_TextBuffer, "stack ptr  = %d/%d", combatCreature, combatStackSettings->creature);
 
                 WriteMessageToLog(h3_TextBuffer, eLogTargetType::LOG_TYPE_SCREEN);
@@ -111,7 +123,7 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                 if (combatSideSettings->IsAffectedBySetting(sideSettingId))
                     errorType = ABILITY_SWITCH_SUCCESS;
             }
-            else
+            else if (noModifier)
             {
                 stackSettingId = STACK_SETTING_FEAR;
                 if (combatStackSettings->IsAffectedBySetting(stackSettingId))
@@ -159,13 +171,11 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                 }
             }
             break;
-        case eVKey::H3VK_X: // after attack ability// spell casting// resurection// double damage (shift) // wall attack
-                            // aim
-
+        case eVKey::H3VK_X: // after attack ability// spell casting// resurrection// double damage (shift) // wall
+                            // attack aim
             errorType = ABILITY_SWITCH_SUCCESS;
             if (shiftPressed)
             {
-
                 if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_DOUBLE_DAMAGE))
                 {
                     stackSettingId = STACK_SETTING_DOUBLE_DAMAGE;
@@ -183,17 +193,16 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                             const_cast<H3CombatCreature *>(combatCreature)->faerieDragonSpell = selectedSpell;
                         }
                     }
-                }
-                else if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE))
-                {
-                    stackSettingId = STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE;
+                    else
+                    {
+                    }
                 }
                 else
                 {
                     errorType = ABILITY_SWITCH_NO_ABILITY;
                 }
             }
-            else
+            else if (noModifier)
             {
                 if (combatStackSettings->IsAffectedBySetting(STACK_SETTING_AFTER_ATTACK_ABILITY))
                 {
@@ -243,6 +252,8 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
             }
             break;
         case eVKey::H3VK_M: // morale (shift)
+            if (ctrlPressed)
+                break;
             errorType = ABILITY_SWITCH_SUCCESS;
             stackSettingId = STACK_SETTING_POSITIVE_MORALE;
 
@@ -560,7 +571,7 @@ BOOL CombatSettingsManager::DecreaseUserPoints(const int toDecrease) noexcept
         instance->cheaterFlagSet = true;
 
         LPCSTR cheatMsg = P_GeneralText->GetText(262);
-        WriteMessageToLog("CHEATER", LOG_TYPE_SCREEN);
+        WriteMessageToLog(cheatMsg, LOG_TYPE_SCREEN);
     }
     return false;
 }

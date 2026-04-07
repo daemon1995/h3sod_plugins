@@ -5,7 +5,6 @@
 #include "CreatureMagicRandom.h"
 
 CreatureMagicRandom *CreatureMagicRandom::instance = nullptr;
-CreaturePrioritySpells CreaturePrioritySpells::creaturePrioritySpells;
 
 CreatureMagicRandom::CreatureMagicRandom() : IGamePatch(globalPatcher->CreateInstance(instanceName))
 {
@@ -78,7 +77,7 @@ BOOL CreatureSpellData::CreateAvailableSpellsList(const H3CombatCreature *creatu
     outList.reserve(h3::limits::SPELLS);
     const CreatureSpellData *spellDataArray = nullptr;
     std::vector<eSpell> *prioritySpells = nullptr;
-    CreaturePrioritySpells &creaturePrioritySpells = CreaturePrioritySpells::creaturePrioritySpells;
+    CreaturePrioritySpells &creaturePrioritySpells = CreatureMagicRandom::GetInstance().creaturePrioritySpells;
     switch (creature->type)
     {
     case eCreature::MASTER_GENIE:
@@ -173,7 +172,7 @@ static void __stdcall BattleStack_CastGenieSpell(HiHook *h, H3CombatCreature *cr
         if (targetStack->CanReceiveSpell(setSpellByUser))
         {
             CombatStackSettings::GetCombatStackSettings(creature).TriggerAbility(STACK_SETTING_SPELL_CASTING);
-            CreaturePrioritySpells::creaturePrioritySpells.masterGenie.UseSpell(setSpellByUser);
+            CreatureMagicRandom::GetInstance().creaturePrioritySpells.masterGenie.UseSpell(setSpellByUser);
             const int spellPower = GetCretureSpellPower(creature);
             P_CombatManager->CastSpell(setSpellByUser, pos, 1, -1, eSecSkillLevel::ADVANCED, spellPower);
             return;
@@ -200,7 +199,7 @@ static char __stdcall BattleStack_EnchanterCastsMassSpell(HiHook *h, H3CombatCre
 
         // call pseudo original function to check if spell can be cast
         char ret = creature->UseEnchanters();
-        CreaturePrioritySpells::creaturePrioritySpells.enchanter.UseSpell(setSpellByUser);
+        CreatureMagicRandom::GetInstance().creaturePrioritySpells.enchanter.UseSpell(setSpellByUser);
         data[0] = storedData;
         // if spell can be cast, decrease user points and return success
         if (ret)
@@ -230,7 +229,7 @@ static _LHF_(BattleStack_CastFaerieDragonSpell)
     const eSpell setSpellByUser = GetUserSelectedSpell(creature);
     if (setSpellByUser != eSpell::NONE)
     {
-        CreaturePrioritySpells::creaturePrioritySpells.faerieDragon.UseSpell(setSpellByUser);
+        CreatureMagicRandom::GetInstance().creaturePrioritySpells.faerieDragon.UseSpell(setSpellByUser);
         CombatStackSettings::GetCombatStackSettings(creature).TriggerAbility(STACK_SETTING_SPELL_CASTING);
         creature->faerieDragonSpell = setSpellByUser;
     }
@@ -464,12 +463,13 @@ static _LHF_(BattleManager_BattleStack_GetAreaSpellResistanceRandom)
 static _LHF_(BattleManager_BattleStack_MagicMirrorRandom)
 {
     // if creature doesn't have magic mirror
-    if (!c->edi || c->edi >= 100)
+    auto *creature = reinterpret_cast<H3CombatCreature *>(c->ecx);
+    const int magicMirrorEffect = creature->MagicMirrorEffect();
+    if (!magicMirrorEffect || magicMirrorEffect >= 100)
     {
         return EXEC_DEFAULT;
     }
 
-    const auto &creature = reinterpret_cast<H3CombatCreature *>(c->ecx);
     auto &settings = CombatStackSettings::GetCombatStackSettings(creature);
 
     switch (settings.magicMirror.triggerState)
@@ -546,7 +546,8 @@ void CreatureMagicRandom::CreatePatches()
     WriteLoHook(0x05A4D80, BattleManager_BattleStack_GetAreaSpellResistanceRandom);
 
     // Magic Mirror
-    WriteLoHook(0x059F1DF, BattleManager_BattleStack_MagicMirrorRandom);
+    // WriteLoHook(0x059F1DA, BattleManager_BattleStack_MagicMirrorRandom);
+    WriteLoHook(0x059F1DA, BattleManager_BattleStack_MagicMirrorRandom);
 
     // reset resurrected stacks
     WriteHiHook(0x05A7870, THISCALL_, BattleManager_Resurrection);
@@ -564,10 +565,14 @@ BOOL CreaturePrioritySpells::LoadUserSettings(LPCSTR _nni)
     iniName = CombatSettingsManager::GetDirectory() + "\\" + CombatSettingsManager::GetFileNameNoExt() + ".ini";
 
     LPCSTR ini = iniName.c_str();
-    settingsIni.Open(ini);
-    LoadSpecialist(masterGenie);
-    LoadSpecialist(faerieDragon);
-    LoadSpecialist(enchanter);
+
+    if (settingsIni.Open(ini))
+    {
+        LoadSpecialist(masterGenie);
+        LoadSpecialist(faerieDragon);
+        LoadSpecialist(enchanter);
+        settingsLoaded = true;
+    }
 
     return 0;
 }
@@ -671,18 +676,22 @@ void CreaturePrioritySpells::LoadSpecialist(SpellLists &spellList)
 
 BOOL SaveCreaturePrioritySpells()
 {
-    return CreaturePrioritySpells::creaturePrioritySpells.SaveUserSettings();
+    return CreatureMagicRandom::GetInstance().creaturePrioritySpells.SaveUserSettings();
 }
 
 BOOL CreaturePrioritySpells::SaveUserSettings()
 {
+    if (settingsLoaded)
+    {
+        SaveSpecialist(masterGenie);
+        SaveSpecialist(enchanter);
+        SaveSpecialist(faerieDragon);
 
-    SaveSpecialist(masterGenie);
-    SaveSpecialist(enchanter);
-    SaveSpecialist(faerieDragon);
+        LPCSTR ini = iniName.c_str();
+        return settingsIni.Save(ini, 0);
+    }
 
-    LPCSTR ini = iniName.c_str();
-    return settingsIni.Save(ini, 0);
+    return false;
 }
 
 CreatureMagicRandom &CreatureMagicRandom::GetInstance()
@@ -715,11 +724,12 @@ SpellSelectionDlg::SpellSelectionDlg(const H3CombatCreature *creature, const std
 
     const BOOL createHint = !isPopup;
     enableDoubleClick = !isPopup;
-    const size_t hintHeight = createHint ? 19 : 0;
+    const size_t hintHeight = createHint ? 20 : 0;
+    const size_t okCancelHeight = !isPopup ? 44 : 0;
 
     // change dialog size based on items
     this->widthDlg = margin * 2 + itemsPerRow * itemWidth + (itemsPerRow - 1) * spacing;
-    this->heightDlg = margin * 2 + rows * itemHeight + (rows - 1) * spacing + hintHeight;
+    this->heightDlg = margin * 2 + rows * itemHeight + (rows - 1) * spacing + hintHeight + okCancelHeight;
 
     xDlg = (H3GameWidth::Get() - widthDlg) >> 1;
     yDlg = (H3GameHeight::Get() - heightDlg) >> 1;
@@ -734,7 +744,7 @@ SpellSelectionDlg::SpellSelectionDlg(const H3CombatCreature *creature, const std
     H3DlgItem *selectedSpellItem = nullptr;
 
     auto &creatureSettings = CombatStackSettings::GetCombatStackSettings(creature);
-    const eSpell preselectedSpell = creatureSettings.At(eStackAbility::STACK_SETTING_SPELL_CASTING).spellToCast;
+    selectedSpell = preselectedSpell = creatureSettings.At(eStackAbility::STACK_SETTING_SPELL_CASTING).spellToCast;
 
     for (size_t row = 0; row < rows; row++)
     {
@@ -781,7 +791,19 @@ SpellSelectionDlg::SpellSelectionDlg(const H3CombatCreature *creature, const std
 
     if (!isPopup)
     {
-        CreateOKButton();
+        auto okBttn = CreateOKButton(25, heightDlg - 50 - hintHeight);
+        auto cancelBttn = CreateCancelButton(widthDlg - 25 - 64, heightDlg - 50 - hintHeight);
+        H3LoadedDef *defaultDef = H3LoadedDef::Load("hd_xchng.def");
+        if (!defaultDef)
+            return;
+        const int defaultX = (widthDlg - defaultDef->widthDEF) >> 1;
+        const int defaultY = okBttn->GetY() + (okBttn->GetHeight() - defaultDef->heightDEF >> 1);
+
+        auto defaultBttn = H3DlgDefButton::Create(defaultX, defaultY, defaultDef->GetName(), 0, 1);
+
+        H3RGB565 color = H3RGB888::Highlight();
+        CreateFrame(defaultBttn, color, itemId++, 1);
+        AddItem(defaultBttn);
     }
 }
 
@@ -812,6 +834,11 @@ BOOL SpellSelectionDlg::DialogProc(H3Msg &msg)
     }
 
     return 0;
+}
+VOID SpellSelectionDlg::OnCancel()
+{
+    selectedSpell = preselectedSpell;
+    return VOID();
 }
 BOOL SpellSelectionDlg::OnDoubleClick(INT itemID, H3Msg &msg)
 {

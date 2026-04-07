@@ -35,7 +35,7 @@ class CombatSettingsManager : public IGamePatch
 
     BOOL combatIsStarted = false;
     BOOL tacticsPhaseRound = false;
-    INT userMaxControlPoints = 1;
+    INT userMaxControlPoints = 3;
     INT userControlPoints = 0;
     INT userControlPointsSpent = 0;
     INT userActionsUsed = 0;

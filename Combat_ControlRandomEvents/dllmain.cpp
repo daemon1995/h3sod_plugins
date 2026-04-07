@@ -24,10 +24,19 @@ PatcherInstance *_PI = nullptr;
 namespace dllText
 {
 LPCSTR instanceName = "EraPlugin." PROJECT_NAME ".daemon_n";
+LPCSTR pluginVersion = "0.9.2";
 }
 
+_LHF_(GameWindowShow)
+{
+   // H3String string(dllText::pluginVersion);
+    //H3Messagebox::Show(dllText::pluginVersion);
+	return EXEC_DEFAULT;
+}
 _LHF_(HooksInit)
 {
+    _PI->WriteLoHook(0x4EEE31, GameWindowShow);
+
     CreatureAttackRandom::GetInstance();
     CombatSettingsManager::GetInstance();
     CreatureTurnControlRandom::GetInstance();

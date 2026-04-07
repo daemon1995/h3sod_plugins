@@ -1,7 +1,7 @@
 #include "framework.h"
 
 #include "CreatureAttackRandom.h"
-
+char GetCombatCreatureWallAttackShots(const H3CombatCreature *creature);
 struct PluginText
 {
     static PluginText &GetInstance();
@@ -241,53 +241,90 @@ struct BallisticsInfo
     int shotsAmount = 0;
 } ballisticsInfo;
 
+constexpr size_t DAMAGES_AMOUNT = 3;
+struct GameBallisticsInfo
+{
+    struct BallisticsHitChances
+    {
+        char chanceToHitKeep;
+        char chanceToHitTower;
+        char chanceToHitGate;
+        char chanceToHitWall;
+    } ballisticsHitChances;
+    char shots;
+
+    union {
+        struct
+        {
+            char chanceToDeal0Damage;
+            char chanceToDeal1Damage;
+            char chanceToDeal2Damage;
+        };
+        char dealDamageChances[DAMAGES_AMOUNT];
+    };
+};
+int GetCombatCreatureBallisticsLevel(const H3CombatCreature *creature)
+{
+    if (!creature || !creature->info.destroyWalls)
+        return -1;
+    auto owner = creature->GetOwner();
+    switch (creature->type)
+    {
+    case eCreature::CYCLOPS:
+        return eSecSkillLevel::BASIC;
+    case eCreature::CYCLOPS_KING:
+        return eSecSkillLevel::ADVANCED;
+    case eCreature::CATAPULT:
+        if (owner)
+            return static_cast<eSecSkillLevel>(owner->secSkill[eSecondary::BALLISTICS]);
+    default:
+        break;
+    }
+    return eSecSkillLevel::NONE;
+}
+BOOL8 HasCombatCreatureVariadicWallDamage(const H3CombatCreature *creature)
+{
+    const int skillLevel = GetCombatCreatureBallisticsLevel(creature);
+    if (skillLevel < 0)
+        return false;
+
+    GameBallisticsInfo *gameBallisticsInfo = *reinterpret_cast<GameBallisticsInfo **>(0x0679C84);
+    for (size_t i = 0; i < DAMAGES_AMOUNT; i++)
+    {
+        if (gameBallisticsInfo[skillLevel].dealDamageChances[i] == 100)
+            return false;
+    }
+    return true;
+}
+char GetCombatCreatureWallAttackShots(const H3CombatCreature *creature)
+{
+    const int skillLevel = GetCombatCreatureBallisticsLevel(creature);
+    if (skillLevel < 0)
+        return 0;
+    GameBallisticsInfo *gameBallisticsInfo = *reinterpret_cast<GameBallisticsInfo **>(0x0679C84);
+    return gameBallisticsInfo[skillLevel].shots;
+}
 void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3CombatCreature *attacker,
                                                               const int targetHex)
 {
-    constexpr size_t DAMAGES_AMOUNT = 3;
-    struct GameBallisticsInfo
-    {
-        struct BallisticsHitChances
-        {
-            char chanceToHitKeep;
-            char chanceToHitTower;
-            char chanceToHitGate;
-            char chanceToHitWall;
-        } ballisticsHitChances;
-        char shots;
 
-        union {
-            struct
-            {
-                char chanceToDeal0Damage;
-                char chanceToDeal1Damage;
-                char chanceToDeal2Damage;
-            };
-            char dealDamageChances[DAMAGES_AMOUNT];
-        };
-    };
+    const int creatureType = attacker->type;
+    int skillLevel = GetCombatCreatureBallisticsLevel(attacker);
+    if (skillLevel < 0)
+    {
+        THISCALL_2(void, h->GetDefaultFunc(), attacker, targetHex);
+        return;
+    }
 
     auto &currentSettings = CombatStackSettings::GetCombatStackSettings(attacker);
 
     GameBallisticsInfo *gameBallisticsInfo = nullptr;
-
-    const int creatureType = attacker->type;
-    int skillLevel = 0;
-    if (creatureType == eCreature::CATAPULT)
-    {
-        skillLevel = P_CombatManager->hero[0]->secSkill[eSecondary::BALLISTICS];
-    }
-    else
-    {
-        skillLevel = (creatureType == eCreature::CYCLOPS_KING) + 1;
-    }
-
     GameBallisticsInfo storedInfo;
 
-    BOOL minimalDamageEnabled =
-        currentSettings.At(STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE).triggerState == TRIGGER_STATE_ENABLED;
+    BOOL minimalDamageEnabled = false;
 
     BOOL aimShotEnabled = currentSettings.At(STACK_SETTING_WALL_ATTACK_AIM).triggerState == TRIGGER_STATE_ENABLED;
+
     //    ballisticsInfo.ballisticsSkillLevel = skillLevel;
 
     if (minimalDamageEnabled || aimShotEnabled)
@@ -312,10 +349,10 @@ void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3Comba
             // set minimal damage chances to 100% and other chances to 0%
             libc::memset(&gameBallisticsInfo[skillLevel].dealDamageChances, 0, DAMAGES_AMOUNT);
             gameBallisticsInfo[skillLevel].dealDamageChances[indexOfMinimalDamage] = 100;
-            currentSettings.TriggerAbility(STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE);
         }
         else // if (aimShotEnabled)
         {
+
             // set 100% chance to hit any target;
             libc::memset(&gameBallisticsInfo[skillLevel].ballisticsHitChances, 100,
                          sizeof(gameBallisticsInfo[skillLevel].ballisticsHitChances));

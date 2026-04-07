@@ -68,14 +68,46 @@ int __stdcall CreatureTurnControlRandom::AIBattleStack_NegativeMoraleRandom(HiHo
     return FASTCALL_2(int, hook->GetDefaultFunc(), min, max);
 }
 
-char __stdcall CreatureTurnControlRandom::BattleMgr_CheckFear(HiHook *h, const H3CombatManager *_this,
-                                                              const H3CombatCreature *creature)
+_LHF_(CreatureTurnControlRandom::BattleMgr_CheckFear)
 {
 
-    instance->currentSettings = &CombatStackSettings::GetCombatStackSettings(creature);
-    char result = THISCALL_2(char, h->GetDefaultFunc(), _this, creature);
-    instance->currentSettings = nullptr;
-    return result;
+    auto combatCreature = ValueAt<H3CombatCreature *>(c->ebp + 0x8);
+    auto &stackSettings = CombatStackSettings::GetCombatStackSettings(combatCreature);
+    Ability settings = stackSettings.At(STACK_SETTING_FEAR);
+    if (settings.triggerState == TRIGGER_STATE_DISABLED)
+    {
+        const int side = combatCreature->side;
+        auto &sideSettings = CombatSideSettings::GetCombatSideSettings(side);
+        auto &sideSetting = sideSettings.At(SIDE_SETTING_UNAFFECTED_BY_FEAR);
+        if (sideSetting.triggerState == TRIGGER_STATE_ENABLED)
+        {
+            settings = sideSetting;
+            settings.triggerState = TRIGGER_STATE_NEVER; // if side is unaffected by, then stack is also
+            // unaffected by, so set it to never
+            sideSettings.TriggerAbility(SIDE_SETTING_UNAFFECTED_BY_FEAR);
+            c->return_address = 0x04649E2;
+            return NO_EXEC_DEFAULT;
+        }
+    }
+    else
+    {
+        switch (settings.triggerState)
+        {
+        case TRIGGER_STATE_ALWAYS:
+            c->return_address = 0x04649ED;
+            break;
+        case TRIGGER_STATE_NEVER:
+            c->return_address = 0x04649E2;
+            break;
+        case TRIGGER_STATE_DEFAULT:
+        default:
+            return EXEC_DEFAULT;
+        }
+        stackSettings.TriggerAbility(STACK_SETTING_FEAR);
+        return NO_EXEC_DEFAULT;
+    }
+
+    return EXEC_DEFAULT;
 }
 
 int __stdcall CreatureTurnControlRandom::BattleStack_FearRandom(HiHook *hook, const int min, const int max)
@@ -105,7 +137,8 @@ void CreatureTurnControlRandom::CreatePatches()
         WriteHiHook(0x04647D0, FASTCALL_, AIBattleStack_NegativeMoraleRandom);
 
         // fear check
-        WriteHiHook(0x0464E73, THISCALL_, BattleMgr_CheckFear);
+        WriteLoHook(0x04649D1, BattleMgr_CheckFear);
+        // WriteHiHook(0x0464E73, THISCALL_, BattleMgr_CheckFear);
     }
 }
 

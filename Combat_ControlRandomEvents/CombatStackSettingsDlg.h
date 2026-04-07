@@ -1,5 +1,6 @@
 #pragma once
 
+constexpr int ABILITY_GROUPS_HEIGHT = 50;
 class CombatStackSettingsDlg : public H3Dlg
 
 {
@@ -12,10 +13,13 @@ class CombatStackSettingsDlg : public H3Dlg
 
     // H3DlgText* dlgTitle = nullptr;
     // H3
+    H3DlgDefButton *spellSellectionButton = nullptr;
+
+    int firstGroupItemID = -1;
+    int lastGroupItemID = -1;
 
     struct DlgRadioGroup
     {
-        static constexpr int INDEXES_PER_GROUP = 3;
         RECT position;
         INT groupBoxId = 0;
         INT selectedIndex = 0;
@@ -31,12 +35,17 @@ class CombatStackSettingsDlg : public H3Dlg
 
         void ToggleSelectedIndex(const int index)
         {
-            if (index < 0 || index >= INDEXES_PER_GROUP || selectedIndex == index)
+            const size_t size = radioButtons.size();
+            if (index < 0 || index >= size || selectedIndex == index)
                 return;
             selectedIndex = index;
-            for (int i = 0; i < INDEXES_PER_GROUP; i++)
+            for (int i = 0; i < size; i++)
             {
-                radioButtons[i].button->SetFrame(i == index ? 1 : 0);
+                auto &radioButton = radioButtons[i].button;
+                radioButton->SetFrame(i == index ? 1 : 0);
+                radioButton->SetClickFrame(i == index ? 1 : 0);
+                radioButton->Draw();
+                radioButton->Refresh();
             }
         }
 
@@ -47,7 +56,8 @@ class CombatStackSettingsDlg : public H3Dlg
     std::vector<DlgRadioGroup> radioGroups;
 
   protected:
-    CombatStackSettingsDlg(const int width, const int height, const H3CombatCreature *creature, const BOOL isRightClick);
+    CombatStackSettingsDlg(const int width, const int height, const H3CombatCreature *creature,
+                           const BOOL isRightClick);
     virtual ~CombatStackSettingsDlg();
 
   protected:

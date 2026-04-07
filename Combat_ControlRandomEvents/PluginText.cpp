@@ -194,7 +194,6 @@ LPCSTR PluginText::GetStateText(const eStackAbility settingId, const Ability &ch
     switch (settingId)
     {
     case eStackAbility::STACK_SETTING_PHOENIX_RESURRECTION:
-
         if (changer.resurrectionState != RESURRECTION_STATE_DEFAULT)
         {
             libc::sprintf(textBuffer, stackSettingsText[settingId].logText.c_str(), changer.resurrectionState - 1,
@@ -206,8 +205,10 @@ LPCSTR PluginText::GetStateText(const eStackAbility settingId, const Ability &ch
         if (changer.spellToCast != eSpell::NONE)
         {
             return P_Spell[changer.spellToCast].name;
-        } // NO BREAK
-
+        }
+        return triggerStates[changer.triggerState].name.c_str();
+    case eStackAbility::STACK_SETTING_WALL_ATTACK_AIM:
+        return wallAttackStates[changer.triggerState].name.c_str();
     case eStackAbility::STACK_SETTING_DAMAGE_VARIATION_FIRST:
     case eStackAbility::STACK_SETTING_DAMAGE_VARIATION_SECOND:
         return damageStates[changer.triggerState].name.c_str();
@@ -254,12 +255,11 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
         codepage = j["codepage"].get<UINT>();
 
     static constexpr LPCSTR stackAbilityKeys[] = {
-        "positive_morale",      "negative_morale",        "fear",
-        "spell_casting",        "phoenix_resurrection",   "magic_resistance",
-        "magic_mirror",         "positive_luck",          "double_luck",
-        "double_damage",        "wall_attack_aim",        "wall_attack_extended",
-        "after_attack_ability", "damage_variation_first", "damage_variation_second",
-        "damage_input"};
+        "positive_morale",        "negative_morale",         "fear",
+        "spell_casting",          "phoenix_resurrection",    "magic_resistance",
+        "magic_mirror",           "positive_luck",           "double_luck",
+        "double_damage",          "wall_attack_aim",         "after_attack_ability",
+        "damage_variation_first", "damage_variation_second", "damage_input"};
     static_assert(std::size(stackAbilityKeys) == AMOUNT_OF_STACK_SETTINGS, "Ability keys size mismatch");
     ReadJsonStringFieldToArray(j, "stack_abilities", stackAbilityKeys, stackSettingsText, std::size(stackSettingsText));
 
@@ -273,6 +273,9 @@ BOOL PluginText::LoadTextFromJsonFile(const std::string &fileName)
 
     static constexpr LPCSTR damageKeys[] = {"default", "minimum", "maximum"};
     ReadJsonStringFieldToArray(j, "damage_states", damageKeys, damageStates, std::size(damageStates));
+
+    static constexpr auto wallAttackKeys = damageKeys;
+    ReadJsonStringFieldToArray(j, "wall_attack_states", wallAttackKeys, wallAttackStates, std::size(wallAttackStates));
 
     hintBarText.LoadFromJson(j);
     battleResultText.LoadFromJson(j);
@@ -290,7 +293,7 @@ void PluginText::Load()
         hdModLang = hdModLangPath.substr(pos + 1, 2);
     }
 
-    const auto& pluginDir = CombatSettingsManager::GetDirectory();
+    const auto &pluginDir = CombatSettingsManager::GetDirectory();
 
     std::string jsonFilePath = pluginDir + "/lang/" + hdModLang + ".json";
     if (LoadTextFromJsonFile(jsonFilePath))

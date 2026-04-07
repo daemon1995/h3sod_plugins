@@ -34,7 +34,7 @@ struct CreaturePrioritySpells
     std::string iniName;
 
     H3Ini settingsIni; // = nullptr;
-
+    BOOL settingsLoaded = FALSE;
     struct SpellLists
     {
         eCreature creature = eCreature::UNDEFINED;
@@ -55,12 +55,9 @@ struct CreaturePrioritySpells
     SpellLists faerieDragon = {eCreature::FAERIE_DRAGON};
     SpellLists enchanter = {eCreature::ENCHANTER};
 
-    static CreaturePrioritySpells creaturePrioritySpells;
-
   public:
     CreaturePrioritySpells()
     {
-        iniName = CombatSettingsManager::GetDirectory() + "\\" + CombatSettingsManager::GetFileNameNoExt() + ".ini";
         this->LoadUserSettings();
     }
 
@@ -79,6 +76,9 @@ class CreatureMagicRandom : IGamePatch
     // CreaturePrioritySpells creaturePrioritySpells;
 
     static CreatureMagicRandom *instance;
+
+  public:
+    CreaturePrioritySpells creaturePrioritySpells;
 
   private:
     CreatureMagicRandom();
@@ -102,12 +102,14 @@ class SpellSelectionDlg : H3Dlg
 
   protected:
     virtual BOOL DialogProc(H3Msg &msg) override;
+    virtual VOID OnCancel() override;
     virtual BOOL OnDoubleClick(INT itemID, H3Msg &msg) override;
 
   protected:
     H3DlgFrame *selectionFrame = nullptr;
 
     const std::vector<eSpell> &availableSpells;
+    eSpell preselectedSpell = eSpell::NONE;
     eSpell selectedSpell = eSpell::NONE;
 
     SpellSelectionDlg(const H3CombatCreature *creature, const std::vector<eSpell> &availableSpells, const BOOL isPopup,

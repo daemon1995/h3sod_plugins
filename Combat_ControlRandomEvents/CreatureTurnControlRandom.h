@@ -23,8 +23,7 @@ class CreatureTurnControlRandom : public IGamePatch
     static int __stdcall BattleStack_NegativeMoraleRandom(HiHook *hook, const int min, const int max);
     static int __stdcall AIBattleStack_NegativeMoraleRandom(HiHook *hook, const int min, const int max);
 
-    static char __stdcall BattleMgr_CheckFear(HiHook *h, const H3CombatManager *_this,
-                                              const H3CombatCreature *creature);
+    static _LHF_(BattleMgr_CheckFear);
     static int __stdcall BattleStack_FearRandom(HiHook *hook, const int min, const int max);
 
   public:

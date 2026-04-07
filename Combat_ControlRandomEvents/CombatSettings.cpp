@@ -1,4 +1,7 @@
 #include "framework.h"
+char GetCombatCreatureWallAttackShots(const H3CombatCreature *creature);
+int GetCombatCreatureBallisticsLevel(const H3CombatCreature *creature);
+BOOL8 HasCombatCreatureVariadicWallDamage(const H3CombatCreature *creature);
 
 // Forward declarations
 struct CreatureAttackRandom
@@ -19,9 +22,7 @@ CombatSideSettings CombatSideSettings::sideSettings[2]{};
 
 BOOL CombatStackSettings::IsAffectedBySetting(const eStackAbility id) const
 {
-    if (!creature)
-        return FALSE;
-    if (creature->numberAlive < 1 && creature->type == eCreature::ARROW_TOWER)
+    if (!creature || creature->numberAlive < 1 || creature->type == eCreature::ARROW_TOWER)
         return FALSE;
 
     const auto &info = creature->info;
@@ -43,7 +44,11 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackAbility id) const
     case STACK_SETTING_NEGATIVE_MORALE:
         return !info.noMorale; // || creature->info.undead;
     case STACK_SETTING_FEAR:
-        return !(info.noMorale || creatureType == eCreature::AZURE_DRAGON); // || creature->info.undead;
+        for (auto &stacks : P_CombatManager->stacks)
+            for (auto &stack : stacks)
+                if (stack.type == eCreature::AZURE_DRAGON)
+                    return !(info.noMorale || creatureType == eCreature::AZURE_DRAGON);
+        return false; // || creature->info.undead;
     case STACK_SETTING_SPELL_CASTING:
         return creatureType == eCreature::ENCHANTER ||
                (creatureType == eCreature::MASTER_GENIE || creatureType == eCreature::FAERIE_DRAGON) &&
@@ -81,21 +86,16 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackAbility id) const
                (creatureType == eCreature::BALLISTA && owner &&
                 owner->secSkill[eSecondary::ARTILLERY]); // ballista's double damage
     case STACK_SETTING_WALL_ATTACK_AIM:
-        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 && creature->side == 0 &&
-               (creatureType != eCreature::CATAPULT ||
-                owner && owner->secSkill[eSecondary::BALLISTICS] > eSecSkillLevel::NONE); // attacker side
-    case STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE:
-        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 && creature->side == 0 &&
-               (creatureType != eCreature::CATAPULT ||
-                (!owner || owner->secSkill[eSecondary::BALLISTICS] < eSecSkillLevel::EXPERT));
+        return info.destroyWalls && P_CombatManager->siegeKind2 > 0 &&
+               GetCombatCreatureBallisticsLevel(creature) > eSecSkillLevel::NONE; // attacker side
     case STACK_SETTING_AFTER_ATTACK_ABILITY:
         return CreatureAttackRandom::BattleStack_HasAfterAttackAbility(creature);
     case STACK_SETTING_DAMAGE_VARIATION_FIRST:
     case STACK_SETTING_DAMAGE_INPUT:
-        return info.damageLow < info.damageHigh;
+        return info.damageLow < info.damageHigh || HasCombatCreatureVariadicWallDamage(creature) > 0;
     case STACK_SETTING_DAMAGE_VARIATION_SECOND:
-        return info.doubleAttack && info.damageLow < info.damageHigh;
-
+        return info.doubleAttack && info.damageLow < info.damageHigh ||
+               GetCombatCreatureWallAttackShots(creature) > 1 && HasCombatCreatureVariadicWallDamage(creature);
     default:
         break;
     }
@@ -110,6 +110,7 @@ eAbilityStateSwitchError CombatStackSettings::SwitchToNextAbilityState(const eSt
     result = asArray[id]; // { currentState, asArray[id].duration };
 
     const eTriggerState currentState = result.triggerState;
+    int shootsAmount = 0;
 
     switch (id)
     {
@@ -163,20 +164,24 @@ eAbilityStateSwitchError CombatStackSettings::SwitchToNextAbilityState(const eSt
         }
         break;
     case STACK_SETTING_WALL_ATTACK_AIM:
-    case STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE:
-        if (currentState)
+        shootsAmount = GetCombatCreatureWallAttackShots(creature);
+        if (shootsAmount < 2)
         {
-            result.triggerState = TRIGGER_STATE_DEFAULT;
-            result.cost = 0;
+            if (currentState)
+            {
+                result.triggerState = TRIGGER_STATE_DEFAULT;
+                result.cost = 0;
+            }
+            else
+            {
+                result.triggerState = TRIGGER_STATE_ENABLED;
+                result.cost = 2;
+            }
+            break;
         }
-        else
-        {
-            result.triggerState = TRIGGER_STATE_ENABLED;
-            result.cost = 1;
-        }
-        break;
-        // settings with 3 states (default, always, never)
-    default:
+        // else goes to default w/ 3 states (default, once, always)
+    default: // settings with 3 states (default, always, never)
+
         if (currentState >= TRIGGER_STATE_NEVER)
         {
             result.triggerState = TRIGGER_STATE_DEFAULT;
@@ -430,7 +435,9 @@ size_t CombatStackSettings::GetAbilityStatesAmount(const eStackAbility id) const
         }
         return 1; // only default state, can't be triggered
     case STACK_SETTING_WALL_ATTACK_AIM:
-    case STACK_SETTING_WALL_ATTACK_MINIMAL_DAMAGE:
+        return 2 + (GetCombatCreatureWallAttackShots(creature) >
+                    1); // 2 or 3 (default/1st shoot/ all shoots) depending on ballistics level
+    case STACK_SETTING_SPELL_CASTING:
     case STACK_SETTING_DAMAGE_INPUT:
         return 2;
     default:
