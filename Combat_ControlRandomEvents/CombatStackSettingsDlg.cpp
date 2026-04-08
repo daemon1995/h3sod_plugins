@@ -4,7 +4,7 @@
 #include "PluginText.h"
 struct SpellSelectionDlg
 {
-    static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
+    static eSpell ShowSpellSelectionDialog(const H3CombatCreature *creature, const H3Msg *msg);
 };
 static DWORD GetAbilitiesBitMask(const CombatStackSettings *settings)
 {
@@ -38,10 +38,6 @@ CombatStackSettingsDlg::CombatStackSettingsDlg(const int width, const int height
     CreateSettingsItems();
 }
 
-CombatStackSettingsDlg::~CombatStackSettingsDlg()
-{
-}
-
 INT CombatStackSettingsDlg::DialogProc(H3Msg &msg)
 {
 
@@ -54,18 +50,17 @@ INT CombatStackSettingsDlg::DialogProc(H3Msg &msg)
     case eMsgSubtype::LBUTTON_CLICK:
         if (spellSellectionButton == GetDefButton(itemId))
         {
-            auto resultSpell = SpellSelectionDlg::ShowSpellSelectionDialog(
-                const_cast<H3CombatCreature *>(viewedCretureSettings->creature), &msg);
+            auto resultSpell = SpellSelectionDlg::ShowSpellSelectionDialog(localCreatureSettings.creature, &msg);
 
             if (resultSpell != eSpell::NONE)
             {
                 groupIndex = itemId / 10 - 1;
                 const int toggleIndex = itemId - radioGroups[groupIndex].groupBoxId * 10 - 1;
                 const auto abilityId = radioGroups[groupIndex].settingId;
-				Ability& ability = localCreatureSettings.asArray[abilityId];
-				radioGroups[groupIndex].radioButtons[1].text->SetText(PluginText::GetInstance().GetStateText(abilityId, ability));
+                Ability &ability = localCreatureSettings.asArray[abilityId];
+                radioGroups[groupIndex].radioButtons[1].text->SetText(
+                    PluginText::GetInstance().GetStateText(abilityId, ability));
             }
-
             break;
         }
     case eMsgSubtype::LBUTTON_DOWN:
@@ -199,7 +194,8 @@ void CombatStackSettingsDlg::CreateSettingsItems()
                 radioButton.text = CreateText(toggleX + 36, toggleY, toggleWidth - 36, groupBoxButtonHeight,
                                               PluginText::GetInstance().GetStateText(abilityId, ability),
                                               NH3Dlg::Text::SMALL, eTextColor::REGULAR, startItemId++);
-
+                H3Random::Rand(1, 100);
+                H3Random::MultiplayerRandom(1, 100);
                 radioButtonX += toggleWidth + togglesSpacing;
 
                 radioButton = radioButtons[1];

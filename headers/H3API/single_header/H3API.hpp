@@ -15484,13 +15484,13 @@ namespace h3
 		_H3API_ VOID BuildCombinationArtifact(INT32 combo_id);
 		_H3API_ BOOL UnlearnSkill(INT32 id);
 		_H3API_ VOID RecalculateMovement();
-		_H3API_ BOOL8 CanFlyOnTile();
-		_H3API_ INT32 GetMovementCost(INT32 orientation, UINT32 mixedPos);
+		_H3API_ BOOL8 CanFlyOnTile() const;
+		_H3API_ INT32 GetMovementCost(INT32 orientation, UINT32 mixedPos) const;
 		_H3API_ INT32 SSkillsLeftToLearn();
-		_H3API_ BOOL WearsArtifact(INT id);
-		_H3API_ INT32 GetHeroPrimary(INT primary);
-		_H3API_ INT32 HasSimilarCreature(INT id);
-		_H3API_ LPCSTR GetHeroClassName();
+		_H3API_ BOOL WearsArtifact(INT id) const;
+		_H3API_ INT32 GetHeroPrimary(INT primary) const;
+		_H3API_ INT32 HasSimilarCreature(INT id) const;
+		_H3API_ LPCSTR GetHeroClassName() const;
 		_H3API_ VOID ShowDialog() const;
 		/**
 		 * @brief Shows the hero information dialog
@@ -32541,11 +32541,11 @@ namespace h3
 			adv->MakeHeroPath();
 		}
 	}
-	_H3API_ BOOL8 H3Hero::CanFlyOnTile()
+	_H3API_ BOOL8 H3Hero::CanFlyOnTile() const
 	{
 		return THISCALL_1(BOOL8, 0x4E5F50, this);
 	}
-	_H3API_ INT32 H3Hero::GetMovementCost(INT32 orientation, UINT32 mixedPos)
+	_H3API_ INT32 H3Hero::GetMovementCost(INT32 orientation, UINT32 mixedPos) const
 	{
 		return FASTCALL_4(INT32, 0x4B1620, this, orientation, mixedPos, movement);
 	}
@@ -32584,19 +32584,19 @@ namespace h3
 		skills_can_be_learned = std::max(skills_can_be_learned, 1);
 		return skills_can_be_learned - 1; // -1 because it's already included in formula for level to go to
 	}
-	_H3API_ BOOL H3Hero::WearsArtifact(INT id)
+	_H3API_ BOOL H3Hero::WearsArtifact(INT id) const
 	{
 		return THISCALL_2(BOOL, 0x4D9460, this, id);
 	}
-	_H3API_ INT32 H3Hero::GetHeroPrimary(INT primary)
+	_H3API_ INT32 H3Hero::GetHeroPrimary(INT primary) const
 	{
 		return THISCALL_2(INT32, 0x5BE240, this, primary);
 	}
-	_H3API_ INT32 H3Hero::HasSimilarCreature(INT id)
+	_H3API_ INT32 H3Hero::HasSimilarCreature(INT id) const
 	{
 		return FASTCALL_2(INT32, 0x4A7230, this, id);
 	}
-	_H3API_ LPCSTR H3Hero::GetHeroClassName()
+	_H3API_ LPCSTR H3Hero::GetHeroClassName() const
 	{
 		return THISCALL_1(LPCSTR, 0x4D91E0, this);
 	}

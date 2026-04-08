@@ -79,6 +79,7 @@ class CreatureMagicRandom : IGamePatch
 
   public:
     CreaturePrioritySpells creaturePrioritySpells;
+    eSpell faerieDragonSpell = eSpell::NONE;
 
   private:
     CreatureMagicRandom();
@@ -99,6 +100,7 @@ class SpellSelectionDlg : H3Dlg
     static constexpr size_t ITEMS_PER_ROW = 4;
     static constexpr size_t ITEMS_MARGIN = 16;
     static constexpr size_t ITEMS_PADDING = 4;
+    static constexpr size_t DEFAULT_BUTTON_ID = 30724;
 
   protected:
     virtual BOOL DialogProc(H3Msg &msg) override;
@@ -116,5 +118,5 @@ class SpellSelectionDlg : H3Dlg
                       const int width = 400, const int height = 300);
 
   public:
-    static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
+    static eSpell ShowSpellSelectionDialog(const H3CombatCreature *creature, const H3Msg *msg);
 };

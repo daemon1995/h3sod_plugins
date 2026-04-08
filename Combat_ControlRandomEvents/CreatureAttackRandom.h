@@ -29,6 +29,8 @@ class CreatureAttackRandom : public IGamePatch
     CombatStackSettings *currentSettings = nullptr;
     const Ability *currentDamageAbility = nullptr;
     BOOL8 stacksAttackedAtLeastOnce[2][h3::limits::TOTAL_COMBAT_CREATURES]{{}};
+    int catapultAttacksMade = 0;
+    Patch *allowCatapultRepeatedShotsPatch = nullptr;
 
     // used to store infor about real damage dealt in case of abilities that trigger after attack and can change damage
     // dealt (e.g. after attack ability, double damage, luck)
@@ -104,9 +106,9 @@ class DamageInputDlg : H3Dlg
     const PossibleDamage &basePossibleDamage;
     const PossibleDamage &finalPossibleDamage;
 
-    H3DlgText* userInfoText = nullptr;
+    H3DlgText *userInfoText = nullptr;
     H3DlgEdit *userInputDamage = nullptr;
-    
+
     union DamageRow {
         struct
         {
@@ -127,6 +129,7 @@ class DamageInputDlg : H3Dlg
     DamageInputDlg(const H3CombatCreature *attacker, const H3CombatCreature *target,
                    const PossibleDamage &basePossibleDamage, const PossibleDamage &finalPossibleDamage,
                    const int width = 400, const int height = 300);
+    virtual ~DamageInputDlg() {};
 
   protected:
     void CreateDamageRow(const PossibleDamage &possibleDamage, DamageRow &damageRow, const int y);
@@ -135,4 +138,80 @@ class DamageInputDlg : H3Dlg
   public:
     static int ShowInputDamageDlg(const H3CombatCreature *attacker, const H3CombatCreature *target,
                                   const PossibleDamage &basePossibleDamage, const PossibleDamage &finalPossibleDamage);
+};
+
+constexpr size_t WALL_DAMAGES_AMOUNT = 3;
+struct GameBallisticsInfo
+{
+    struct BallisticsHitChances
+    {
+        char chanceToHitKeep;
+        char chanceToHitTower;
+        char chanceToHitGate;
+        char chanceToHitWall;
+    } ballisticsHitChances;
+    char shots;
+
+    union {
+        struct
+        {
+            char chanceToDeal0Damage;
+            char chanceToDeal1Damage;
+            char chanceToDeal2Damage;
+        };
+        char dealDamageChances[WALL_DAMAGES_AMOUNT];
+    };
+};
+
+class WallDamageDlg : public H3Dlg
+{
+    int damageValues[WALL_DAMAGES_AMOUNT]{};
+
+    H3DlgText *finalDamage = nullptr;
+    H3DlgScrollbar *scrollbar = nullptr;
+
+  public:
+    int selectedDamageIndex = -1;
+
+  public:
+    WallDamageDlg(GameBallisticsInfo *ballisticsInfo) : H3Dlg(400, 128)
+    {
+
+        int ticksCount = 0;
+        for (size_t i = 0; i < WALL_DAMAGES_AMOUNT; i++)
+        {
+            if (ballisticsInfo->dealDamageChances[i] > 0)
+            {
+                damageValues[ticksCount++] = i;
+            }
+        }
+        H3DlgScrollbar_proc;
+
+        CreateText(16, 16, widthDlg - 32, 20, h3_TextBuffer, NH3Dlg::Text::MEDIUM, eTextColor::REGULAR, -1);
+
+        scrollbar = CreateScrollbar(125, 42, 150, 16, 13, ticksCount, ScrollbarHandler);
+
+        libc::sprintf(h3_TextBuffer, "Min Damage: %d", damageValues[0]);
+        CreateText(20, 40, 105, 20, h3_TextBuffer, NH3Dlg::Text::MEDIUM, eTextColor::REGULAR, -1);
+
+        libc::sprintf(h3_TextBuffer, "Max Damage: %d", damageValues[ticksCount - 1]);
+        CreateText(widthDlg - 125, 40, 105, 20, h3_TextBuffer, NH3Dlg::Text::MEDIUM, eTextColor::REGULAR, -1);
+
+        libc::sprintf(h3_TextBuffer, "Final Damage: %d", damageValues[0]);
+        finalDamage =
+            CreateText(16, 56, widthDlg - 32, 20, h3_TextBuffer, NH3Dlg::Text::MEDIUM, eTextColor::REGULAR, -1);
+        CreateOKButton((widthDlg - 64) >> 1, heightDlg - 50);
+    }
+    virtual ~WallDamageDlg() {};
+
+  protected:
+    static VOID __fastcall ScrollbarHandler(INT newPos, H3BaseDlg *_dlg)
+    {
+        auto dlg = reinterpret_cast<WallDamageDlg *>(_dlg);
+        libc::sprintf(h3_TextBuffer, "Final Damage: %d", dlg->damageValues[newPos]);
+        dlg->finalDamage->SetText(h3_TextBuffer);
+        dlg->Redraw();
+    }
+    virtual void OnOK() override;
+    //    virtual BOOL OnDoubleClick(INT itemID, H3Msg& msg) override;
 };

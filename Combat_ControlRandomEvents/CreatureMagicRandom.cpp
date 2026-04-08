@@ -210,14 +210,22 @@ static char __stdcall BattleStack_EnchanterCastsMassSpell(HiHook *h, H3CombatCre
     }
     return THISCALL_1(char, h->GetDefaultFunc(), creature);
 }
-
+eSpell GetOriginalFaerieDragonSpellToCast()
+{
+    return CreatureMagicRandom::GetInstance().faerieDragonSpell;
+}
 static _LHF_(BattleStack_PrepareFaerieDragonSpell)
 {
     const auto &creature = reinterpret_cast<H3CombatCreature *>(c->edi);
     const eSpell setSpellByUser = GetUserSelectedSpell(creature);
+    CreatureMagicRandom::GetInstance().faerieDragonSpell = eSpell(c->eax);
+
+    // if user set spell then replace and store original one
     if (setSpellByUser != eSpell::NONE)
     {
         c->eax = setSpellByUser;
+        CreatureMagicRandom::GetInstance().faerieDragonSpell = eSpell::NONE;
+
     }
 
     return EXEC_DEFAULT;
@@ -745,7 +753,11 @@ SpellSelectionDlg::SpellSelectionDlg(const H3CombatCreature *creature, const std
 
     auto &creatureSettings = CombatStackSettings::GetCombatStackSettings(creature);
     selectedSpell = preselectedSpell = creatureSettings.At(eStackAbility::STACK_SETTING_SPELL_CASTING).spellToCast;
-
+    if (preselectedSpell == eSpell::NONE && creature == P_CombatManager->activeStack &&
+        creature->type == eCreature::FAERIE_DRAGON)
+    {
+        // preselectedSpell = eSpell(creature->faerieDragonSpell);
+    }
     for (size_t row = 0; row < rows; row++)
     {
         for (size_t column = 0; column < itemsPerRow; column++)
@@ -799,10 +811,11 @@ SpellSelectionDlg::SpellSelectionDlg(const H3CombatCreature *creature, const std
         const int defaultX = (widthDlg - defaultDef->widthDEF) >> 1;
         const int defaultY = okBttn->GetY() + (okBttn->GetHeight() - defaultDef->heightDEF >> 1);
 
-        auto defaultBttn = H3DlgDefButton::Create(defaultX, defaultY, defaultDef->GetName(), 0, 1);
+        auto defaultBttn = H3DlgDefButton::Create(defaultX, defaultY, DEFAULT_BUTTON_ID, defaultDef->GetName(), 0, 1,
+                                                  false, eVKey::H3VK_D);
 
         H3RGB565 color = H3RGB888::Highlight();
-        CreateFrame(defaultBttn, color, itemId++, 1);
+        CreateFrame(defaultBttn, color, 0, 1);
         AddItem(defaultBttn);
     }
 }
@@ -814,32 +827,36 @@ BOOL SpellSelectionDlg::DialogProc(H3Msg &msg)
         const int itemId = msg.itemId;
         if (itemId >= eSpell::QUICK_SAND && itemId <= eSpell::AIR_ELEMENTAL)
         {
-
             selectedSpell = static_cast<eSpell>(itemId);
-            if (selectionFrame)
+            H3DlgItem *clickedItem = GetDef(itemId);
+            if (clickedItem)
             {
-                if (H3DlgItem *clickedItem = GetDef(itemId))
-                {
-                    selectionFrame->SetX(clickedItem->GetX());
-                    selectionFrame->SetY(clickedItem->GetY());
-                    selectionFrame->Show();
-                    Redraw();
-                }
+                selectionFrame->SetX(clickedItem->GetX());
+                selectionFrame->SetY(clickedItem->GetY());
+                selectionFrame->Show();
+                Redraw();
             }
 
             return 1;
         }
-
-        return 0;
+    }
+    else if (msg.IsLeftClick() && msg.itemId == DEFAULT_BUTTON_ID) // default button
+    {
+        selectedSpell = eSpell::NONE;
+        selectionFrame->Hide();
+        Redraw();
+        return 1;
     }
 
     return 0;
 }
+
 VOID SpellSelectionDlg::OnCancel()
 {
     selectedSpell = preselectedSpell;
     return VOID();
 }
+
 BOOL SpellSelectionDlg::OnDoubleClick(INT itemID, H3Msg &msg)
 {
     if (itemID >= eSpell::QUICK_SAND && itemID <= eSpell::AIR_ELEMENTAL)
@@ -851,7 +868,7 @@ BOOL SpellSelectionDlg::OnDoubleClick(INT itemID, H3Msg &msg)
 
     return 0;
 }
-eSpell SpellSelectionDlg::ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg)
+eSpell SpellSelectionDlg::ShowSpellSelectionDialog(const H3CombatCreature *creature, const H3Msg *msg)
 {
 
     const BOOL isPopup = msg->IsRightClick();

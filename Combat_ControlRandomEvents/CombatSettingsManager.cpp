@@ -18,10 +18,10 @@ RANDOM_HANDLER_DECLARATION(CreatureAttackRandom)
 RANDOM_HANDLER_DECLARATION(CreatureMagicRandom)
 
 extern BOOL SaveCreaturePrioritySpells();
-
+extern eSpell GetOriginalFaerieDragonSpellToCast();
 struct SpellSelectionDlg
 {
-    static eSpell ShowSpellSelectionDialog(H3CombatCreature *creature, const H3Msg *msg);
+    static eSpell ShowSpellSelectionDialog(const H3CombatCreature *creature, const H3Msg *msg);
 };
 
 static const std::string &GetFullPath() noexcept
@@ -184,18 +184,36 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
                 {
                     const eSpell selectedSpell = SpellSelectionDlg::ShowSpellSelectionDialog(
                         const_cast<H3CombatCreature *>(combatCreature), msg);
-                    if (selectedSpell != eSpell::NONE)
+
+                    if (combatCreature->type != eCreature::FAERIE_DRAGON || currentActiveCreature != combatCreature)
                     {
+                        Ability spellCastingState = selectedSpell != eSpell::NONE
+                                                        ? Ability{TRIGGER_STATE_ENABLED, selectedSpell, 1}
+                                                        : Ability{};
+
                         combatStackSettings->SetCreatureAbilityState(combatCreature, STACK_SETTING_SPELL_CASTING,
-                                                                     {TRIGGER_STATE_ALWAYS, selectedSpell, 1});
-                        if (combatCreature->type == eCreature::FAERIE_DRAGON)
-                        {
-                            const_cast<H3CombatCreature *>(combatCreature)->faerieDragonSpell = selectedSpell;
-                        }
+                                                                     spellCastingState);
                     }
                     else
                     {
+                        const eSpell previousSpell = GetOriginalFaerieDragonSpellToCast();
+
+                        if (selectedSpell != eSpell::NONE && selectedSpell != previousSpell)
+                        {
+                            Ability spellCastingState = Ability{TRIGGER_STATE_ENABLED, selectedSpell, 1};
+
+                            combatStackSettings->SetCreatureAbilityState(combatCreature, STACK_SETTING_SPELL_CASTING,
+                                                                         spellCastingState);
+                            const_cast<H3CombatCreature *>(combatCreature)->faerieDragonSpell = selectedSpell;
+                        }
+                        else
+                        {
+                            combatStackSettings->SetCreatureAbilityState(combatCreature, STACK_SETTING_SPELL_CASTING,
+                                                                         {});
+                            const_cast<H3CombatCreature *>(combatCreature)->faerieDragonSpell = previousSpell;
+                        }
                     }
+                    return;
                 }
                 else
                 {
@@ -318,7 +336,8 @@ void CombatSettingsManager::SwitchBattleStackAbilityByHotKey(H3CombatManager *mg
         {
             CombatStackSettings::SetCreatureAbilityState(combatCreature, stackSettingId, nextAbilityState);
 
-            if (stackSettingId == STACK_SETTING_SPELL_CASTING && combatCreature->type == eCreature::FAERIE_DRAGON)
+            if (currentActiveCreature == combatCreature && stackSettingId == STACK_SETTING_SPELL_CASTING &&
+                combatCreature->type == eCreature::FAERIE_DRAGON)
                 const_cast<H3CombatCreature *>(combatCreature)->faerieDragonSpell = nextAbilityState.spellToCast;
         }
         else

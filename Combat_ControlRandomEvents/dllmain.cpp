@@ -8,7 +8,6 @@
 #include "CreatureMagicRandom.h"
 #include "CreatureTurnControlRandom.h"
 
-#include "CombatSettingsManager.h"
 class CombatStackSettingsDlg : public H3Dlg
 {
 
@@ -24,7 +23,7 @@ PatcherInstance *_PI = nullptr;
 namespace dllText
 {
 LPCSTR instanceName = "EraPlugin." PROJECT_NAME ".daemon_n";
-LPCSTR pluginVersion = "0.9.2";
+LPCSTR pluginVersion = "0.9.5";
 }
 
 _LHF_(GameWindowShow)

@@ -44,10 +44,9 @@ BOOL CombatStackSettings::IsAffectedBySetting(const eStackAbility id) const
     case STACK_SETTING_NEGATIVE_MORALE:
         return !info.noMorale; // || creature->info.undead;
     case STACK_SETTING_FEAR:
-        for (auto &stacks : P_CombatManager->stacks)
-            for (auto &stack : stacks)
-                if (stack.type == eCreature::AZURE_DRAGON)
-                    return !(info.noMorale || creatureType == eCreature::AZURE_DRAGON);
+        for (int i = 0; i < 42; ++i)
+            if (P_CombatManager->stacks[0][i].type == eCreature::AZURE_DRAGON)
+                return !(info.noMorale || creatureType == eCreature::AZURE_DRAGON);
         return false; // || creature->info.undead;
     case STACK_SETTING_SPELL_CASTING:
         return creatureType == eCreature::ENCHANTER ||

@@ -9,9 +9,18 @@ enum eTriggerState : unsigned int
     TRIGGER_STATE_NEVER = 2,
     AMOUNT_OF_TRIGGER_STATES
 };
+enum eCatapultAimShotState : unsigned int
+{
+    CATAPULT_AIM_SHOT_STATE_DEFAULT = 0,
+    CATAPULT_AIM_SHOT_STATE_DISABLED = CATAPULT_AIM_SHOT_STATE_DEFAULT,
+    CATAPULT_AIM_SHOT_STATE_FIRST_SHOT = 1,
+    CATAPULT_AIM_SHOT_STATE_ALL_SHOTS = 2,
+    AMOUNT_OF_CATAPULT_AIM_SHOT_STATES
+};
 enum ePhoenixResurrectionState : unsigned int
 {
     RESURRECTION_STATE_DEFAULT = 0,
+    RESURRECTION_STATE_DISABLED = RESURRECTION_STATE_DEFAULT,
     RESURRECTION_STATE_0_FROM_ANY = 1,
     RESURRECTION_STATE_1_FROM_ANY = 2,
     RESURRECTION_STATE_2_FROM_2 = 3,
@@ -46,7 +55,7 @@ enum eStackAbility
     STACK_SETTING_AFTER_ATTACK_ABILITY,
     STACK_SETTING_DAMAGE_VARIATION_FIRST,
     STACK_SETTING_DAMAGE_VARIATION_SECOND,
-    STACK_SETTING_DAMAGE_INPUT, // 2 ( for the wall attack 
+    STACK_SETTING_DAMAGE_INPUT, // 2 ( for the wall attack
     AMOUNT_OF_STACK_SETTINGS
 };
 enum eAbilityStateSwitchError : UINT
@@ -62,7 +71,8 @@ struct Ability
 {
     union {
         eTriggerState triggerState;
-        ePhoenixResurrectionState resurrectionState = RESURRECTION_STATE_DEFAULT;
+        ePhoenixResurrectionState resurrectionState;
+        eCatapultAimShotState catapultAimShotState = CATAPULT_AIM_SHOT_STATE_DEFAULT;
     };
     union {
         INT8 duration;

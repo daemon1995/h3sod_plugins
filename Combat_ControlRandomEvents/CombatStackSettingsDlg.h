@@ -58,7 +58,7 @@ class CombatStackSettingsDlg : public H3Dlg
   protected:
     CombatStackSettingsDlg(const int width, const int height, const H3CombatCreature *creature,
                            const BOOL isRightClick);
-    virtual ~CombatStackSettingsDlg();
+    virtual ~CombatStackSettingsDlg() {};
 
   protected:
     virtual BOOL DialogProc(H3Msg &msg) override;

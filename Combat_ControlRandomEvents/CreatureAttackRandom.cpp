@@ -235,34 +235,11 @@ int __stdcall CreatureAttackRandom::BattleStack_LuckRandom(HiHook *hook, const i
                                                              SIDE_SETTING_UNAFFECTED_BY_LUCK, hook, min, max);
 }
 
-struct BallisticsInfo
+void WallDamageDlg::OnOK()
 {
-    int ballisticsSkillLevel = eSecSkillLevel::NONE;
-    int shotsAmount = 0;
-} ballisticsInfo;
+    selectedDamageIndex = damageValues[scrollbar->GetTick()];
+}
 
-constexpr size_t DAMAGES_AMOUNT = 3;
-struct GameBallisticsInfo
-{
-    struct BallisticsHitChances
-    {
-        char chanceToHitKeep;
-        char chanceToHitTower;
-        char chanceToHitGate;
-        char chanceToHitWall;
-    } ballisticsHitChances;
-    char shots;
-
-    union {
-        struct
-        {
-            char chanceToDeal0Damage;
-            char chanceToDeal1Damage;
-            char chanceToDeal2Damage;
-        };
-        char dealDamageChances[DAMAGES_AMOUNT];
-    };
-};
 int GetCombatCreatureBallisticsLevel(const H3CombatCreature *creature)
 {
     if (!creature || !creature->info.destroyWalls)
@@ -289,7 +266,7 @@ BOOL8 HasCombatCreatureVariadicWallDamage(const H3CombatCreature *creature)
         return false;
 
     GameBallisticsInfo *gameBallisticsInfo = *reinterpret_cast<GameBallisticsInfo **>(0x0679C84);
-    for (size_t i = 0; i < DAMAGES_AMOUNT; i++)
+    for (size_t i = 0; i < WALL_DAMAGES_AMOUNT; i++)
     {
         if (gameBallisticsInfo[skillLevel].dealDamageChances[i] == 100)
             return false;
@@ -308,58 +285,157 @@ void __stdcall CreatureAttackRandom::BattleStack_CatapultShot(HiHook *h, H3Comba
                                                               const int targetHex)
 {
 
-    const int creatureType = attacker->type;
-    int skillLevel = GetCombatCreatureBallisticsLevel(attacker);
+    const int skillLevel = GetCombatCreatureBallisticsLevel(attacker);
     if (skillLevel < 0)
     {
         THISCALL_2(void, h->GetDefaultFunc(), attacker, targetHex);
         return;
     }
 
+    auto patch = instance->allowCatapultRepeatedShotsPatch;
+
+    // always disablle patch to prevent recursive calls, it will be enabled later if needed
+    if (patch->IsApplied())
+        patch->Undo();
+
+    auto &catapultAttacksMade = instance->catapultAttacksMade;
+    const BOOL isFirstAttack = catapultAttacksMade == 0;
+
     auto &currentSettings = CombatStackSettings::GetCombatStackSettings(attacker);
+
+    BOOL variationDamageEnabled = false;
+    BOOL variationDamageInputEnabled = false;
+    const BOOL creatureHasVariadicWallDamage = HasCombatCreatureVariadicWallDamage(attacker);
+    const eStackAbility damageVariationSettingId =
+        isFirstAttack ? STACK_SETTING_DAMAGE_VARIATION_FIRST : STACK_SETTING_DAMAGE_VARIATION_SECOND;
+
+    auto &damageState = currentSettings.At(damageVariationSettingId).triggerState;
+    if (creatureHasVariadicWallDamage)
+    {
+
+        variationDamageInputEnabled =
+            currentSettings.At(STACK_SETTING_DAMAGE_INPUT).triggerState == TRIGGER_STATE_ENABLED;
+
+        if (variationDamageInputEnabled || damageState != TRIGGER_STATE_DISABLED)
+        {
+            variationDamageEnabled = true;
+        }
+    }
+
+    auto &aimShotState = currentSettings.At(STACK_SETTING_WALL_ATTACK_AIM).catapultAimShotState;
+
+    const BOOL aimShotEnabled = isFirstAttack ? aimShotState != CATAPULT_AIM_SHOT_STATE_DISABLED
+                                              : aimShotState == CATAPULT_AIM_SHOT_STATE_ALL_SHOTS;
+
+    // if neither aim shot nor damage variation is enabled then just do default shot without any changes
+    if (!(aimShotEnabled || variationDamageEnabled))
+    {
+        THISCALL_2(void, h->GetDefaultFunc(), attacker, targetHex);
+        return;
+    }
 
     GameBallisticsInfo *gameBallisticsInfo = nullptr;
     GameBallisticsInfo storedInfo;
 
-    BOOL minimalDamageEnabled = false;
-
-    BOOL aimShotEnabled = currentSettings.At(STACK_SETTING_WALL_ATTACK_AIM).triggerState == TRIGGER_STATE_ENABLED;
-
     //    ballisticsInfo.ballisticsSkillLevel = skillLevel;
 
-    if (minimalDamageEnabled || aimShotEnabled)
+    gameBallisticsInfo = *reinterpret_cast<GameBallisticsInfo **>(0x0679C84);
+    // store original hit chances to restore them after shot
+    storedInfo = gameBallisticsInfo[skillLevel];
+
+    // if it is 1st shot we should enable patch to control next shots;
+    if (aimShotState == CATAPULT_AIM_SHOT_STATE_ALL_SHOTS)
     {
-        gameBallisticsInfo = *reinterpret_cast<GameBallisticsInfo **>(0x0679C84);
-        // store original hit chances to restore them after shot
-        storedInfo = gameBallisticsInfo[skillLevel];
+        gameBallisticsInfo[skillLevel].shots = 1; // set shots to 1 to prevent multiple shots in one attack
+        if (++catapultAttacksMade < storedInfo.shots)
+            patch->Apply();
+        else
+            catapultAttacksMade = 0; // reset attacks counter for next time
+    }
+    else
+    {
+        catapultAttacksMade = 0; // reset attacks counter for next time
+    }
 
-        if (minimalDamageEnabled)
+    UINT indexOfDamageToTrigger = -1; // init as undefined value
+
+    if (aimShotEnabled)
+    {
+        // set 100% chance to hit any target;
+        libc::memset(&gameBallisticsInfo[skillLevel].ballisticsHitChances, 100,
+                     sizeof(gameBallisticsInfo[skillLevel].ballisticsHitChances));
+
+        if (aimShotState == CATAPULT_AIM_SHOT_STATE_ALL_SHOTS && catapultAttacksMade)
         {
+            const Ability copyAbility = currentSettings.At(STACK_SETTING_WALL_ATTACK_AIM);
+            currentSettings.TriggerAbility(STACK_SETTING_WALL_ATTACK_AIM);
+            // restore ability state, because it will be triggered for each shot
+            currentSettings.asArray[STACK_SETTING_WALL_ATTACK_AIM] = copyAbility;
+        }
+        else
+        {
+            currentSettings.TriggerAbility(STACK_SETTING_WALL_ATTACK_AIM);
+        }
+        indexOfDamageToTrigger = 2; // max damage by default
+    }
 
-            int indexOfMinimalDamage = 0;
-            for (size_t i = 0; i < DAMAGES_AMOUNT; i++)
+    eStackAbility damageStackAbilityToTrigger = STACK_SETTING_NONE;
+    if (variationDamageInputEnabled)
+    {
+        damageStackAbilityToTrigger = STACK_SETTING_DAMAGE_INPUT;
+        indexOfDamageToTrigger = 1;
+
+        WallDamageDlg wallDamageDlg = WallDamageDlg(&gameBallisticsInfo[skillLevel]);
+        wallDamageDlg.Start();
+
+        indexOfDamageToTrigger = wallDamageDlg.selectedDamageIndex;
+
+        // change cost
+        currentSettings.asArray[STACK_SETTING_DAMAGE_INPUT].cost = 1;
+    }
+    else if (variationDamageEnabled)
+    {
+
+        damageStackAbilityToTrigger = damageVariationSettingId;
+        auto &dealDamageChances = gameBallisticsInfo[skillLevel].dealDamageChances;
+
+        if (damageState == TRIGGER_STATE_ALWAYS) // minimum damage
+        {
+            for (size_t i = 0; i < WALL_DAMAGES_AMOUNT; i++)
             {
-                if (gameBallisticsInfo[skillLevel].dealDamageChances[i] > 0)
+                if (dealDamageChances[i] > 0)
                 {
-                    indexOfMinimalDamage = i;
+                    indexOfDamageToTrigger = i;
                     break;
                 }
             }
-
-            // set minimal damage chances to 100% and other chances to 0%
-            libc::memset(&gameBallisticsInfo[skillLevel].dealDamageChances, 0, DAMAGES_AMOUNT);
-            gameBallisticsInfo[skillLevel].dealDamageChances[indexOfMinimalDamage] = 100;
         }
-        else // if (aimShotEnabled)
+        else if (damageState == TRIGGER_STATE_NEVER) // maximum damage
         {
+            for (size_t i = WALL_DAMAGES_AMOUNT - 1; i == 0; i--)
+            {
+                if (dealDamageChances[i] > 0)
+                {
+                    indexOfDamageToTrigger = i;
+                    break;
+                }
+            }
+        }
+    }
 
-            // set 100% chance to hit any target;
-            libc::memset(&gameBallisticsInfo[skillLevel].ballisticsHitChances, 100,
-                         sizeof(gameBallisticsInfo[skillLevel].ballisticsHitChances));
-            // set maximal damage chances to 100% and other chances to 0%
-            libc::memset(&gameBallisticsInfo[skillLevel].dealDamageChances, 0, DAMAGES_AMOUNT);
-            gameBallisticsInfo[skillLevel].chanceToDeal2Damage = 100;
-            currentSettings.TriggerAbility(STACK_SETTING_WALL_ATTACK_AIM);
+    if (indexOfDamageToTrigger >= 0 && indexOfDamageToTrigger < WALL_DAMAGES_AMOUNT)
+    {
+        // set needed damage chances to 100% and other chances to 0%
+        libc::memset(&gameBallisticsInfo[skillLevel].dealDamageChances, 0,
+                     sizeof(gameBallisticsInfo[skillLevel].dealDamageChances));
+
+        gameBallisticsInfo[skillLevel].dealDamageChances[indexOfDamageToTrigger] = 100;
+
+        if (damageStackAbilityToTrigger != STACK_SETTING_NONE)
+        {
+            const BOOL dontSpendAdditionalPoints =
+                aimShotEnabled; // if aim shot is triggered then don't spend additional points for damage variation
+            currentSettings.TriggerAbility(damageStackAbilityToTrigger, dontSpendAdditionalPoints);
         }
     }
 
@@ -439,11 +515,6 @@ static int BattleStack_CalaculateFinalDamageFromBaseDamage(const H3CombatCreatur
     return THISCALL_7(int, 0x0443C60, attacker, defender, baseDamage, isShooting, false, attacker->hexesTraveled,
                       fireShieldDamage);
 }
-
-// BOOL DamageInputDlg::DialogProc(H3Msg &msg)
-//{
-//     return 0;
-// }
 
 DamageInputDlg::DamageInputDlg(const H3CombatCreature *attacker, const H3CombatCreature *target,
                                const PossibleDamage &basePossibleDamage, const PossibleDamage &finalPossibleDamage,
@@ -739,6 +810,8 @@ void CreatureAttackRandom::CreatePatches()
         // Cyclops// Catapult: Wall Damage random
 
         WriteHiHook(0x047942D, THISCALL_, BattleStack_CatapultShot);
+        allowCatapultRepeatedShotsPatch = _pi->WriteJmp(0x0479432, 0x0479444);
+        allowCatapultRepeatedShotsPatch->Undo(); // allow to trigger catapult shot multiple times in a row
         // WriteHiHook(0x0445BE0, THISCALL_, BattleStack_AttackWall);
         // WriteLoHook(0x0445CBB, BattleStack_MakeBallisticShot);
     }

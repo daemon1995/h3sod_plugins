@@ -49,7 +49,7 @@ struct PluginText : IPluginText
         std::string description;
         std::string logText;
     } stackSettingsText[AMOUNT_OF_STACK_SETTINGS], sideSettingsText[AMOUNT_OF_SIDE_SETTINGS],
-        triggerStates[AMOUNT_OF_TRIGGER_STATES], wallAttackStates[AMOUNT_OF_TRIGGER_STATES],
+        triggerStates[AMOUNT_OF_TRIGGER_STATES], wallAttackStates[AMOUNT_OF_CATAPULT_AIM_SHOT_STATES],
         damageStates[AMOUNT_OF_TRIGGER_STATES];
 
     struct BattleResultText
