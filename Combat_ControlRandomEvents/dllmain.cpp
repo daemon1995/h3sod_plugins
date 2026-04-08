@@ -11,9 +11,9 @@
 class CombatStackSettingsDlg : public H3Dlg
 {
 
-public:
-    static void __stdcall BattleMgr_ShowMonStatDlg(HiHook* hook, H3CombatManager* mgr, H3CombatCreature* creature,
-        BOOL isRightClick);
+  public:
+    static void __stdcall BattleMgr_ShowMonStatDlg(HiHook *hook, H3CombatManager *mgr, H3CombatCreature *creature,
+                                                   BOOL isRightClick);
 };
 
 using namespace h3;
@@ -24,13 +24,13 @@ namespace dllText
 {
 LPCSTR instanceName = "EraPlugin." PROJECT_NAME ".daemon_n";
 LPCSTR pluginVersion = "0.9.5";
-}
+} // namespace dllText
 
 _LHF_(GameWindowShow)
 {
-   // H3String string(dllText::pluginVersion);
-    //H3Messagebox::Show(dllText::pluginVersion);
-	return EXEC_DEFAULT;
+    // H3String string(dllText::pluginVersion);
+    // H3Messagebox::Show(dllText::pluginVersion);
+    return EXEC_DEFAULT;
 }
 _LHF_(HooksInit)
 {
