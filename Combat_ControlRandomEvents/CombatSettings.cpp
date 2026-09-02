@@ -15,7 +15,7 @@ struct CreatureSpellData
 };
 
 // Static member definitions
-CombatStackSettings CombatStackSettings::combatStackSettings[2][h3::limits::COMBAT_CREATURES + 1]{};
+CombatStackSettings CombatStackSettings::combatStackSettings[2][h3::limits::TOTAL_COMBAT_CREATURES]{};
 CombatSideSettings CombatSideSettings::sideSettings[2]{};
 
 // Method implementations
